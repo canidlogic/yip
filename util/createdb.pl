@@ -25,13 +25,20 @@ The SQL string embedded in this script contains the complete database
 structure.  The following subsections describe the function of each
 table within the databsase.
 
-=head2 bvars table
+=head2 cvars table
 
-The C<bvars> tables stores configuration variables that can't be freely
-altered because they are critical to the functioning of the CMS system
-and core CGI scripts.  This is a simple key/value map where the key
-field is C<bvarskey> and the value field is C<bvarsval>.  The following
-variables are defined in this table:
+The C<cvars> tables stores configuration variables related to the
+administration CGI scripts, as well as the C<epoch> and C<lastmod>
+variables.  These variables can't be altered through the CGI
+administration scripts, to prevent accidentally locking oneself out of
+administration CGI or corrupting core functionality of the database.
+
+This table is a simple key/value map where the key field is C<cvarskey>
+and the value field is C<cvarsval>.  Each of the C<path> variables must
+begin with a forward slash and should be URI path on the server, such
+that they can be directly embedded within HTML element attribute values
+without any further escaping.  The following variables are defined in
+this table:
 
 =over 4
 
@@ -49,10 +56,10 @@ The number of seconds GMT since the epoch defined by the C<epoch>
 variable for the last update of the CMS database that affects page
 content.  This is used to generate ETag values for generated pages, so
 that caching can work correctly.  This must be updated by scripts that
-change the database in a way that might change generated page content.
-It must have a value that is zero or greater, so it can not refer to
-times before that specified by C<epoch>.  Stored as an unsigned base-16
-string.
+change the database in a way except for the C<cvars> and C<ctmpl>
+tables.  It must have a value that is zero or greater, so it can not
+refer to times before that specified by C<epoch>.  Stored as an unsigned
+base-16 string.
 
 =item C<authsuffix>
 
@@ -102,120 +109,275 @@ reset if the current password is forgotten.
 
 =item C<pathlogin>
 
-The server local path to the login script.  Must begin with C</> and be
-such that it can be directly embedded without any further escaping
-within HTML element attribute values.
+Path to the login script.  GET requests get a prompt page, while POST
+requests perform the login.
 
 =item C<pathlogout>
 
-The server local path to the logout script.  Must begin with C</> and be
-such that it can be directly embedded without any further escaping
-within HTML element attribute values.
+Path to the logout script.  GET requests get a confirmation page, while
+POST requests perform the logout.
 
 =item C<pathreset>
 
-The server local path to the password reset script.  Must begin with and
-be such that it can be directly embedded without any further escaping
-within HTML element attribute values.
-C</>
+Path to the password reset script.  GET requests get a prompt page,
+while POST requests perform the reset.
 
-=item C<pathpop>
+=item c<pathadmin>
 
-The server local path to the pop configuration script.  Must begin with
-C</> and be such that it can be directly embedded without any further
-escaping within HTML element attribute values.
+Path to the administrator control panel page, which has links to all the
+other administration scripts.  Works only with GET method, and takes no
+CGI parameters.
 
-=item C<pathpoke>
+=item C<pathlist>
 
-The server local path to the poke template script.  Must begin with C</>
-and be such that it can be directly embedded without any further
-escaping within HTML element attribute values.
+Path to the listing script.  This takes a GET query string containing a
+single variable C<report> that must be one of the values C<types>
+C<vars> C<templates> C<archives> C<globals> C<posts> and generates a
+report for those types.  The C<templates> C<globals> and C<posts>
+reports have links to C<pathdownload> and C<patharchive> scripts so that
+any of the listed data items can be downloaded.  All reports have links
+for each item leading to the C<pathdrop> script confirmation that allows
+items to be dropped.
 
-=item C<pathwipe>
+=item C<pathdrop>
 
-The server local path to the wipe script.  Must begin with C</> and be
-such that it can be directly embedded without any further escaping
-within HTML element attribute values.
+Path to the drop script.  GET requests require a single variable whose
+key identifies the type of resource to drop and whose value identifies
+the ID of the resource to drop.  The key name might be one of C<type>
+C<var> C<template> C<archive> C<global> C<post>.  The GET request is
+a prompt page to confirm deletion, and then the POST request will
+perform the actual drop.
+
+=item C<pathupjson>
+
+Path to the upload JSON script.  GET requests display an input form, and
+POST requests perform the update.  The form allows JSON to be entered so
+that multiple things may be updated at once.
+
+=item C<pathuptmpl>
+
+Path to the upload template script.  GET requests display an input form,
+and POST requests perform the update.  The form allows the whole
+template to be entered and transmitted.
+
+=item C<pathupgres>
+
+Path to the upload global resource script.  GET requests display an
+input form, and POST requests perform the update.  File upload is used
+to transfer the resource.
+
+=item C<pathuppost>
+
+Path to the upload post script.  GET requests display an input form, and
+POST requests perform the update.  File upload is used to transfer the
+post, which is contained within a Zip archive.
+
+=item C<pathdownload>
+
+Path to the download script.  This takes a GET query string with a
+single variable whose key identifies the type of resource requested and
+whose value identifies the ID of the resource.  The key name is either
+C<template> or C<global>.  The script transfers the raw data contents.
+
+=item C<patharchive>
+
+Path to the archive post script.  GET requests require a single variable
+C<post> whose value is the UID of the post that is being requested.
+This shows a confirmation prompt.  The POST request will generate the
+actual archive of the post to download.
+
+=item C<pathgenuid>
+
+Path to the UID generator script.  Takes a GET query string containing
+a single variable C<table> that is either C<post> C<global> or
+C<archive> indicating what type of object this UID is being generated
+for.
 
 =back
 
-=head2 btmpl table
+=head2 ctmpl table
 
-The C<btmpl> table stores critical templates that can't be altered
-without risking locking oneself out of CGI configuration.  This is a
-simple key/value map where the keys name the template and the values
-store the template encoded in UTF-8.  The following templates are
-recognized.  (If there are other templates defined in the table, they
-are ignored.)
+The C<ctmpl> table stores templates used by the CGI configuration
+scripts.  These are stored separately from the other templates to
+prevent accidentally corrupting the CGI administration scripts and
+locking oneself out of CGI administration.
 
-All templates follow the template format defined by C<HTML::Template>.
-Each template should have an HTML form within it with the C<action>
-attribute set to C<action> template variable, the C<method> attribute
-set to C<method> template variable, and the C<enctype> attribute set to
-C<enctype> template variable.  The form should always have an submit
-input control.  The other necessary controls are specific to the
-particular template and documented below.  Do not add any extra controls
-that will be submitted in the form or script submissions may fail with
-error.
+This table is a simple key/value map where the keys name the template
+and the values store the template encoded in UTF-8.  All templates
+follow the template format defined by C<HTML::Template>.
+
+The specific template variables that are available to each template vary
+depending on the specific template.  The listing given later in this
+section describes what is available in each template.  There are also
+some common patterns of variables for certain classes of templates that
+will now be defined, which can be referenced from the template listings
+to save space.
+
+All templates have access to all the C<path> variables defined in the
+C<cvars> table, which can be accessed as template variables.
+
+Templates in the I<form class> feature an HTML form that submits data
+back to the script to be processed.  For form-class templates, there
+will be an C<action> template variable defined that should be set as the
+C<action> attribute on the form element, a C<method> template variable
+that should be set as the C<method> attribute on the form element, and
+an C<enctype> attribute that should be set as the C<enctype> attribute
+on the form element.  The template should include some kind of form
+submit button.  The specific template defines what form controls should
+be present in the form, and no data controls besides the ones specified
+should be included or else requests may be rejected by the CGI script.
+
+Templates in the I<radio class> are always also in the form class.
+These templates must have a set of two or more radio controls in the
+form.  Each radio control must have its C<name> attribute set to the
+C<radioname> template variable that is always defined in this template
+class.  Exactly one of the radio controls should have a C<checked>
+attribute to define it as the default value in the group.  Each radio
+control has a distinct C<value> property.  The number of radio controls
+and template variables holding the values to insert in the C<value>
+attributes are defined by the specific templates.
 
 =over 4
 
-=item C<login>
+=item C<op_complete>
 
-The HTML login page template.  Within the form, there should be a
-password input with C<name> attribute set to the C<passname> template
-variable.
+Generic template used to report that a requested operation was
+successful.  Should include a success message and a link to C<pathadmin>
+to get back to the main control panel.  This generic success template is
+used for all scripts unless otherwise specified below.
 
-=item C<logout>
+=item C<op_failed>
 
-The HTML logout page template.  Within the form, there should be a
-hidden input with C<name> attribute set to C<timename> template variable
-and C<value> attribute set to C<timeval> template variable.  There
-should also be a hidden input with C<name> attribute set to C<checkname>
-template variable and C<value> attribute set to C<checkval> template
-variable.
+Generic template used to report that a requested operation failed.
+Should include a failure message and a link to C<pathadmin> to get back
+to the main control panel.  This generic failure template is used for
+all scripts unless otherwise specified below.  The template variable
+C<errormsg> is defined with some kind of error message to display.
 
-=item C<reset>
+=item C<login_prompt>
 
-The HTML password reset page template.  Within the form, there should be
-a password input with C<name> attribute set to the C<passold> template
-variable, a password input with C<name> attribute set to the C<passnew>
-template variable, and a password input with C<name> attribute set to
-the C<passdup> template variable.  (The C<passdup> field is another copy
-of the new password to check for a user typo.)
+Login page template used when prompting the user for their username and
+password.  Form class.  Within the form, there should be a password
+input with C<name> attribute set to the C<passname> template variable.
 
-=item C<pop>
+=item C<login_fail>
 
-The HTML configuration variable pop page template.  Within the form,
-there should be textarea element with C<name> attribute set to the
-C<inputname> template variable.  The user will fill in this textarea
-with JSON storing a JSON object that maps keys to scalar values, which
-sets or adds these configuration variables into the C<vars> table.
+Operation failure template specific to the login process.  For security
+reasons, doesn't show any specific error message.  Also, should link
+back to C<pathlogin> instead of the control panel.
 
-=item C<poke>
+=item C<logout_prompt>
 
-The HTML template set page template.  Within the form, there should be
-an input element with C<name> attribute set to the C<inputkey> template
-variable.  There should also be a textarea element with C<name>
-attribute set to the C<inputname> template variable.  The user will fill
-in the target template name in the key field and then the template code
-in the textarea.  The template will be added or updated in the C<tmpl>
-table.
+Logout page template used to prompt the user to confirm logout.  Form
+class.  Within the form, there should be a hidden input with C<name>
+attribute set to C<checkname> template variable and C<value> attribute
+set to C<checkval> template variable.
 
-=item C<wipe>
+=item C<logout_pass>
 
-The HTML configuration variable and template wipe page template.  Within
-the form, there should be two radio input controls, both of which have
-their C<name> attribute set to the C<radioname> template variable.  One
-of the radio input controls has its C<value> set to the C<radiovar>
-template variable, and the other has its C<value> set to the
-C<radiotmpl> template variable.  You should specify the C<checked>
-attribute on exactly one of these radio controls to set the default
-selection; which control the default selection is on doesn't matter.
-There should also be an input element with C<name> set to C<inputname>
-template variable.  The input control names a template or configuration
-variable to drop from C<vars> or C<tmpl> tables, and the radio control
-selects whether this is a template or a variable that is being dropped.
+Logout page template used to report successful logout.  Should I<not>
+have a link back to the control panel since now logged out.  Might have
+a link to the login page.
+
+=item C<logout_fail>
+
+Logout page template used to report failed logout.  Failed logout means
+that the client didn't have a valid administrator cookie when the logout
+operation was attempted.  For security reasons, no specific error
+reported, and no link given to control panel.
+
+=item C<reset_prompt>
+
+Password reset prompt page template.  Form class.  Within the form,
+there should be a password input with C<name> attribute set to the
+C<passold> template variable, a password input with C<name> attribute
+set to the C<passnew> template variable, and a password input with
+C<name> attribute set to the C<passdup> template variable.  (The
+C<passdup> field is another copy of the new password to check for a user
+typo.)
+
+=item C<reset_pass>
+
+Password reset page template used to report successful password reset.
+
+=item C<reset_fail>
+
+Password reset page template used to report failed password reset.
+
+=item C<admin_page>
+
+The main administrator control panel page.  Intended to have links to
+all the other CGI scripts (except the login script).
+
+=item C<uid_report>
+
+UID generation report page template.  The template variable C<uidgen>
+contains the generated UID value that should be reported to the client.
+
+=item C<list_types>
+
+Listing script report template for data types.  There is an array
+variable C<datatypes> that can be used in a template loop.  Each array
+element has a property C<tname> that contains the name of the data type,
+a property C<tmime> that contains the MIME type of the data type, and a
+property C<tlimit> that contains the number of seconds the type may be
+cached, or zero for C<no-cache> semantics, or -1 for C<no-store>
+semantics.
+
+=item C<list_vars>
+
+Listing script report template for template variables.  There is an
+array variable C<varlist> that can be used in a template loop.  Each
+array element has a property C<vname> that contains the name of the
+template variable, and a property C<vval> that contains the value of the
+template variable.
+
+=item C<list_templates>
+
+Listing script report template for templates.  There is an array
+variable C<tmplist> that can be used in a template loop.  Each array
+element has a property C<tname> that contains the name of the template,
+and a property C<tlimit> that contains the number of seconds pages
+generated by this template may be cached, or zero for C<no-cache>
+semantics, or -1 for C<no-store> semantics.
+
+=item C<list_archives>
+
+Listing script report template for archives.  There is an array variable
+C<alist> that can be used in a template loop.  Each array element has a
+property C<auid> that stores the unique ID of the archive, a property
+C<aname> that stores the display name of the archive, and a set of
+properties describing the last publication time covered by this archive.
+The time variables are C<year>, C<mon>, C<monz>, C<day>, C<dayz>,
+C<hr24>, C<hr24z>, C<hr12>, C<hr12z>, C<min>, C<sec>, C<apmu>, C<apml>.
+The fields that have a C<z> suffix are zero-padded to two digits.  The
+hour field is given both 24-hour and 12-hour variants.  For 12-hour
+variants, the C<apmu> and C<apml> fields store C<A> for AM and C<P> for
+PM, with the only difference being C<apml> has a lowercase letter and
+C<ampu> has an uppercase letter.
+
+=item C<list_resources>
+
+Listing script report template for global resources.  There is an array
+variable C<rlist> that can be used in a template loop.  Each array
+element has a property C<ruid> that contains the unique ID of the
+global resource, and a C<rtype> property that contains the name of the
+data type of this resource.
+
+=item C<list_posts>
+
+Listing script report template for posts.  There is an array variable
+C<plist> that can be used in a template loop.  Each array element has a
+property C<puid> that contains the unique ID of the post, and a set of
+variables defining the publication time.  These variables are C<year>,
+C<mon>, C<monz>, C<day>, C<dayz>, C<hr24>, C<hr24z>, C<hr12>, C<hr12z>,
+C<min>, C<sec>, C<apmu>, C<apml>.  The fields that have a C<z> suffix
+are zero-padded to two digits.  The hour field is given both 24-hour and
+12-hour variants.  For 12-hour variants, the C<apmu> and C<apml> fields
+store C<A> for AM and C<P> for PM, with the only difference being
+C<apml> has a lowercase letter and C<ampu> has an uppercase letter.
+
+# @@TODO:
 
 =back
 
