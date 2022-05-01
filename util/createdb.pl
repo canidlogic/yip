@@ -179,7 +179,7 @@ the logout.
 Path to the password reset script.  GET is a prompt page, POST performs
 the reset.
 
-=item c<pathadmin>
+=item C<pathadmin>
 
 Path to the administrator control panel page, which has links to all the
 other administration scripts.  GET method only.
