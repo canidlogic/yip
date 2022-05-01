@@ -47,7 +47,7 @@ connection.  The supported transaction model assumes that everything
 done by the client script will be wrapped in a single database
 transaction that should either completely succeed or completely fail.
 
-To get the CMS database handle, you use the B<beginWork> method and
+To get the CMS database handle, you use the C<beginWork> method and
 specify whether this is a read-only transaction or a read-write
 transaction.  If no transaction is currently active, this will start the
 appropriate kind of database transaction.  If a transaction is currently
@@ -63,7 +63,7 @@ Furthermore, the destructor of this class is configured to perform a
 rollback if a transaction is still active when the script exits
 (including in the event of stopping due to a fatal error).
 
-Each call to B<beginWork> should have a matching C<finishWork> call
+Each call to C<beginWork> should have a matching C<finishWork> call
 (except in the event of a fatal error).  If the internal nesting counter
 indicates that this is not the outermost work block, then the internal
 nesting counter is merely decremented.  If the internal nesting counter
@@ -126,7 +126,7 @@ database.
 
 =over 4
 
-=item B<Yip::DB->connect(db_path, new_db)>
+=item B<connect(db_path, new_db)>
 
 Construct a new CMS database connection object.  C<db_path> is the path
 in the local file system to the SQLite database file.  Normally, you get
@@ -186,7 +186,7 @@ sub connect {
   # transactions, turn RaiseError on so database problems cause fatal
   # errors, and turn off PrintError since it is redundant with
   # RaiseError
-  my $dbh = DBI->connect("dbi:SQLite:dbname=$dbpath", "", "", {
+  my $dbh = DBI->connect("dbi:SQLite:dbname=$db_path", "", "", {
                           AutoCommit => 0,
                           RaiseError => 1,
                           PrintError => 0
@@ -244,7 +244,7 @@ sub DESTROY {
 
 =over 4
 
-=item B<object->begin_work(mode)>
+=item B<beginWork(mode)>
 
 Begin a work block and return a DBI database handle for working with the
 database.
@@ -262,7 +262,7 @@ to one.
 If the nesting counter of this object is already greater than zero when
 this function is called, then the nesting counter will just be
 incremented and the currently active database transaction will continue
-to be used.  A fatal error occurs if C<begin_work> is called in
+to be used.  A fatal error occurs if C<beginWork> is called in 
 read-write mode but there is an active transaction that is read-only.
 
 The returned DBI handle will be to the database that was opened by the
@@ -281,12 +281,12 @@ and you must manually decode UTF-8 binary strings to Unicode after
 receiving them from SQL.
 
 Note that in order for changes to the database to actually take effect,
-you have to match each C<begin_work> call with a later call to
-C<finish_work>.
+you have to match each C<beginWork> call with a later call to 
+C<finishWork>.
 
 =cut
 
-sub begin_work {
+sub beginWork {
   
   # Check parameter count
   ($#_ == 1) or die "Wrong number of parameters, stopped";
@@ -336,7 +336,7 @@ sub begin_work {
   return $self->{'_dbh'};
 }
 
-=item B<object->finish_work(mode)>
+=item B<finishWork(mode)>
 
 Finish a work block.
 
@@ -346,13 +346,13 @@ counter must not already be zero or a fatal error will occur.
 If this decrement causes the nesting counter to fall to zero, then the
 active database transaction will be comitted to the database.
 
-Each call to C<begin_work> should have a matching call to C<finish_work>
-and once you call C<finish_work> you should forget about the database
-handle that was returned by the C<begin_work> call.
+Each call to C<beginWork> should have a matching call to C<finishWork>
+and once you call C<finishWork> you should forget about the database
+handle that was returned by the C<beginWork> call.
 
 =cut
 
-sub finish_work {
+sub finishWork {
   
   # Check parameter count
   ($#_ == 0) or die "Wrong number of parameters, stopped";
@@ -375,7 +375,7 @@ sub finish_work {
   }
 }
 
-=item B<object->cancel_work()>
+=item B<cancelWork()>
 
 Cancel a work block.
 
@@ -391,7 +391,7 @@ transaction.
 
 =cut
 
-sub cancel_work {
+sub cancelWork {
   
   # Check parameter count
   ($#_ == 0) or die "Wrong number of parameters, stopped";
