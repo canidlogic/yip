@@ -146,7 +146,7 @@ database handle.
 
 # INSTANCE METHODS
 
-- **begin\_work(mode)**
+- **beginWork(mode)**
 
     Begin a work block and return a DBI database handle for working with the
     database.
@@ -164,7 +164,7 @@ database handle.
     If the nesting counter of this object is already greater than zero when
     this function is called, then the nesting counter will just be
     incremented and the currently active database transaction will continue
-    to be used.  A fatal error occurs if `begin_work` is called in
+    to be used.  A fatal error occurs if `beginWork` is called in 
     read-write mode but there is an active transaction that is read-only.
 
     The returned DBI handle will be to the database that was opened by the
@@ -183,10 +183,10 @@ database handle.
     receiving them from SQL.
 
     Note that in order for changes to the database to actually take effect,
-    you have to match each `begin_work` call with a later call to
-    `finish_work`.
+    you have to match each `beginWork` call with a later call to 
+    `finishWork`.
 
-- **finish\_work(mode)**
+- **finishWork(mode)**
 
     Finish a work block.
 
@@ -196,11 +196,11 @@ database handle.
     If this decrement causes the nesting counter to fall to zero, then the
     active database transaction will be comitted to the database.
 
-    Each call to `begin_work` should have a matching call to `finish_work`
-    and once you call `finish_work` you should forget about the database
-    handle that was returned by the `begin_work` call.
+    Each call to `beginWork` should have a matching call to `finishWork`
+    and once you call `finishWork` you should forget about the database
+    handle that was returned by the `beginWork` call.
 
-- **cancel\_work()**
+- **cancelWork()**
 
     Cancel a work block.
 
