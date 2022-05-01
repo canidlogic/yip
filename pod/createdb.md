@@ -392,7 +392,8 @@ jumps are left ambiguous so that every day has exactly 24 hours and
 every minute has exactly 60 seconds.  Negative values are allowed, so
 long as the negative value added to the `epoch` value does not go below
 zero.  For positive values, the value added to the `epoch` value must
-not go beyond December 31, 4999.
+not go beyond December 31, 4999.  Each post must have a unique
+`postdate` so that posts can unambiguously be sorted.
 
 Finally, each post has a `postcode` field that stores the post as a
 binary string encoded in UTF-8.  This is an HTML template in the format
