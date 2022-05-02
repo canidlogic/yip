@@ -61,6 +61,12 @@ indicates that this is the outermost work block, then `finishWork` will
 commit the transaction.  (If a fatal error occurs during commit, the
 result is a rollback.)
 
+Before a commit takes place on read-write transactions, the `lastmod`
+configuration variable will be updated in the `cvars` table according
+to the procedure given in "General rules" in the documentation for the
+`createdb.pl` script.  If you do not want this behavior, there is a
+special `w` mode you should use with the `beginWork` call.
+
 In the simplified style of operation shown in the synopsis, all you have
 to do is start with `beginWork` to get the database handle and call
 `finishWork` once you are done with the handle.  If any sort of fatal
@@ -152,20 +158,30 @@ database handle.
     database.
 
     The `mode` argument must be either the string value `r` or the string
-    value `rw`.  If it is `r` then only read operations are needed.  If it
-    is `rw` then both read and write operations are needed.
+    value `rw` or the string value `w`.  If it is `r` then only read
+    operations are needed.  If it is `rw` then both read and write
+    operations are needed, and the `lastmod` variable should be updated
+    before the transaction commits.  If it is `w` then both read and write
+    operations are needed, but the `lastmod` variable does not need to be
+    updated before the transaction commits.
 
     If the nesting counter of this object is in its initial state of zero,
     then a new transaction will be declared on the database, with deferred
-    transactions used for read-only and immediate transactions used for
-    read-write.  In both cases, the nesting counter will then be incremented
-    to one.
+    transactions used for read-only and immediate transactions used for both
+    read-write modes.  In all cases, the nesting counter will then be
+    incremented to one.
 
     If the nesting counter of this object is already greater than zero when
     this function is called, then the nesting counter will just be
     incremented and the currently active database transaction will continue
-    to be used.  A fatal error occurs if `beginWork` is called in 
-    read-write mode but there is an active transaction that is read-only.
+    to be used.  A fatal error occurs if `beginWork` is called for one of
+    the read-write modes but there is an active transaction that is
+    read-only.
+
+    If you have a `rw` transaction active, you are allowed to open a `w`
+    transaction.  Also, if you have a `w` transaction open, you are allowed
+    to open a `rw` transaction.  At the end of the transaction, if at any
+    point there was a `rw` transaction, `lastmod` will be updated.
 
     The returned DBI handle will be to the database that was opened by the
     constructor.  This handle will always be to a SQLite database, though
@@ -194,7 +210,9 @@ database handle.
     counter must not already be zero or a fatal error will occur.
 
     If this decrement causes the nesting counter to fall to zero, then the
-    active database transaction will be comitted to the database.
+    active database transaction will be committed to the database.  If there
+    was any rw transaction at any time, lastmod will be updated before
+    commit.
 
     Each call to `beginWork` should have a matching call to `finishWork`
     and once you call `finishWork` you should forget about the database
