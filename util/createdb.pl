@@ -804,9 +804,10 @@ CREATE UNIQUE INDEX ix_parc_until
 #
 my $dbc = Yip::DB->connect($config_dbpath, 1);
 
-# Begin r/w transaction and get handle
+# Begin r/w transaction and get handle; do NOT update lastmod
+# automatically
 #
-my $dbh = $dbc->beginWork('rw');
+my $dbh = $dbc->beginWork('w');
 
 # Parse our SQL script into a sequence of statements, each ending with
 # a semicolon
