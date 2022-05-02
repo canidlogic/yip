@@ -1,6 +1,9 @@
 package Yip::DB;
 use strict;
 
+# Non-core dependencies
+use Crypt::Random qw(makerandom);
+
 # Database imports
 #
 # Get DBD::SQLite to install all you need
@@ -70,6 +73,12 @@ nesting counter is merely decremented.  If the internal nesting counter
 indicates that this is the outermost work block, then C<finishWork> will
 commit the transaction.  (If a fatal error occurs during commit, the
 result is a rollback.)
+
+Before a commit takes place on read-write transactions, the C<lastmod>
+configuration variable will be updated in the C<cvars> table according
+to the procedure given in "General rules" in the documentation for the
+C<createdb.pl> script.  If you do not want this behavior, there is a
+special C<w> mode you should use with the C<beginWork> call.
 
 In the simplified style of operation shown in the synopsis, all you have
 to do is start with C<beginWork> to get the database handle and call
@@ -206,9 +215,14 @@ sub connect {
   # zero
   $self->{'_nest'} = 0;
   
-  # The 'ro' property will be set to one if nest counter is greater than
-  # zero and the transaction is read-only, or zero in all other cases
+  # The '_ro' property will be set to one if nest counter is greater
+  # than zero and the transaction is read-only, or zero in all other
+  # cases
   $self->{'_ro'} = 0;
+  
+  # The '_lm' property will be set to one if lastmod should be updated
+  # at the end of the transaction
+  $self->{'_lm'} = 0;
   
   # Return the new object
   return $self;
@@ -250,20 +264,30 @@ Begin a work block and return a DBI database handle for working with the
 database.
 
 The C<mode> argument must be either the string value C<r> or the string
-value C<rw>.  If it is C<r> then only read operations are needed.  If it
-is C<rw> then both read and write operations are needed.
+value C<rw> or the string value C<w>.  If it is C<r> then only read
+operations are needed.  If it is C<rw> then both read and write
+operations are needed, and the C<lastmod> variable should be updated
+before the transaction commits.  If it is C<w> then both read and write
+operations are needed, but the C<lastmod> variable does not need to be
+updated before the transaction commits.
 
 If the nesting counter of this object is in its initial state of zero,
 then a new transaction will be declared on the database, with deferred
-transactions used for read-only and immediate transactions used for
-read-write.  In both cases, the nesting counter will then be incremented
-to one.
+transactions used for read-only and immediate transactions used for both
+read-write modes.  In all cases, the nesting counter will then be
+incremented to one.
 
 If the nesting counter of this object is already greater than zero when
 this function is called, then the nesting counter will just be
 incremented and the currently active database transaction will continue
-to be used.  A fatal error occurs if C<beginWork> is called in 
-read-write mode but there is an active transaction that is read-only.
+to be used.  A fatal error occurs if C<beginWork> is called for one of
+the read-write modes but there is an active transaction that is
+read-only.
+
+If you have a C<rw> transaction active, you are allowed to open a C<w>
+transaction.  Also, if you have a C<w> transaction open, you are allowed
+to open a C<rw> transaction.  At the end of the transaction, if at any
+point there was a C<rw> transaction, C<lastmod> will be updated.
 
 The returned DBI handle will be to the database that was opened by the
 constructor.  This handle will always be to a SQLite database, though
@@ -298,14 +322,14 @@ sub beginWork {
   
   my $tmode = shift;
   (not ref($tmode)) or die "Invalid parameter type, stopped";
-  (($tmode eq 'rw') or ($tmode eq 'r')) or
+  (($tmode eq 'rw') or ($tmode eq 'r') or ($tmode eq 'w')) or
     die "Invalid parameter value, stopped";
   
   # Check whether a transaction is active
   if ($self->{'_nest'} > 0) {
     # Transaction active, so check for error condition that active
     # transaction is read-only but work block request is read-write
-    if ($self->{'_ro'} and ($tmode eq 'rw')) {
+    if ($self->{'_ro'} and (($tmode eq 'rw') or ($tmode eq 'w'))) {
       die "Can't write when active transaction is read-only, stopped";
     }
     
@@ -313,16 +337,28 @@ sub beginWork {
     ($self->{'_nest'} < 1000000) or die "Nesting overflow, stopped";
     $self->{'_nest'}++;
     
+    # If this is a rw transaction, make sure lm flag is set
+    if ($tmode eq 'rw') {
+      $self->{'_lm'} = 1;
+    }
+    
   } else {
     # No transaction active, so begin a transaction of the appropriate
-    # type and set internal ro flag
+    # type and set internal ro and lm flags
     if ($tmode eq 'rw') {
       $self->{'_dbh'}->do('BEGIN IMMEDIATE TRANSACTION');
       $self->{'_ro'} = 0;
+      $self->{'_lm'} = 1;
+      
+    } elsif ($tmode eq 'w') {
+      $self->{'_dbh'}->do('BEGIN IMMEDIATE TRANSACTION');
+      $self->{'_ro'} = 0;
+      $self->{'_lm'} = 0;
       
     } elsif ($tmode eq 'r') {
       $self->{'_dbh'}->do('BEGIN DEFERRED TRANSACTION');
       $self->{'_ro'} = 1;
+      $self->{'_lm'} = 0;
       
     } else {
       die "Unexpected";
@@ -344,7 +380,9 @@ This function decrements the nesting counter of the object.  The nesting
 counter must not already be zero or a fatal error will occur.
 
 If this decrement causes the nesting counter to fall to zero, then the
-active database transaction will be comitted to the database.
+active database transaction will be committed to the database.  If there
+was any rw transaction at any time, lastmod will be updated before
+commit.
 
 Each call to C<beginWork> should have a matching call to C<finishWork>
 and once you call C<finishWork> you should forget about the database
@@ -367,10 +405,44 @@ sub finishWork {
     die "No active work block to finish, stopped";
   $self->{'_nest'}--;
   
-  # If nesting counter is now zero, clear the ro flag and commit the
-  # active transaction
+  # If nesting counter is now zero, ro flag is clear, and lm flag is
+  # set, perform the lastmod update
+  if (($self->{'_nest'} <= 0) and (not ($self->{'_ro'}))
+        and $self->{'_lm'}) {
+    # Get the current value of lastmod
+    my $lma = $self->{'_dbh'}->selectrow_arrayref(
+                'SELECT cvarsval FROM cvars WHERE cvarskey=?',
+                undef,
+                'lastmod');
+    (ref($lma) eq 'ARRAY') or die "lastmod undefined, stopped";
+    $lma = "$lma->[0]";
+    
+    ($lma =~ /\A[0-9A-Fa-f]{1,8}\z/) or die "lastmod invalid, stopped";
+    $lma = hex($lma);
+    
+    # If adding 64 would go beyond 32-bit unsigned range, then we have
+    # a lastmod overflow
+    ($lma <= 0xffffffff - 64) or die "lastmod overflow, stopped";
+    
+    # Increment at least one and at most 64
+    $lma = $lma + 1 + makerandom(
+                        Size => 6, Strength => 0, Uniform => 1);
+    
+    # Convert to base-16 string
+    $lma = sprintf("%x", $lma);
+    
+    # Update the lastmod value
+    $self->{'_dbh'}->do(
+      'UPDATE cvars SET cvarsval=? WHERE cvarskey=?',
+      undef,
+      $lma, 'lastmod');
+  }
+  
+  # If nesting counter is now zero, clear the ro and lm flags and commit
+  # the active transaction
   unless ($self->{'_nest'} > 0) {
     $self->{'_ro'} = 0;
+    $self->{'_lm'} = 0;
     $self->{'_dbh'}->commit;
   }
 }
@@ -404,6 +476,7 @@ sub cancelWork {
   # If nesting counter is not zero, roll back and reset object state
   if ($self->{'_nest'} > 0) {
     $self->{'_ro'} = 0;
+    $self->{'_lm'} = 0;
     $self->{'_nest'} = 0;
     eval { $self->{'_dbh'}->rollback; };
   }
