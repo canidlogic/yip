@@ -24,11 +24,24 @@ Yip::Admin - Common utilities for administration CGI scripts.
     
     # Send a Set-Cookie header to client with new verification cookie
     $yad->sendCookie;
+    
+    # Send a Set-Cookie header to client that cancels cookie
+    $yad->cancelCookie;
+    
+    # Send a standard error response for an invalid request method
+    Yip::Admin->invalid_method;
+    
+    # Send a standard error response for a bad request
+    Yip::Admin->bad_request;
+    
+    # Read data sent from HTTP client as raw bytes
+    my $octets = Yip::Admin->read_client;
 
 # DESCRIPTION
 
 Module that contains common support functions for administration CGI
-scripts.
+scripts.  Some functions are available as class methods, others need a
+utility object to be constructed, as described below.
 
 First, you connect to the Yip CMS database using `Yip::DB`.  Then, you
 pass that database connection object to the `Yip::Admin` constructor to
@@ -157,6 +170,39 @@ though!
     Print a `Set-Cookie` HTTP header that contains a fresh, valid
     authorization cookie.  The `Set-Cookie` line is printed directly to
     standard output, followed by a CR+LF break.
+
+- **cancelCookie()**
+
+    Print a `Set-Cookie` HTTP header that overwrites any authorization
+    cookie the client may have with an invalid value and then immediately
+    expires the cookie.  The `Set-Cookie` line is printed directly to
+    standard output, followed by a CR+LF break.
+
+# STATIC CLASS METHODS
+
+- **invalid\_method()**
+
+    Send an HTTP 405 Method Not Allowed back to the client and exit without
+    returning.
+
+- **bad\_request()**
+
+    Send an HTTP 400 Bad Request back to the client and exit without
+    returning.
+
+- **read\_client()**
+
+    Read data sent by an HTTP client.  This checks for CONTENT\_LENGTH
+    environment variable, then reads exactly that from standard input,
+    returning the raw bytes in a binary string.  If there are any problems,
+    sends 400 Bad Request back to client and exits without returning.
+
+- **parse\_form($str)**
+
+    Given a string in application/x-www-form-urlencoded format, parse it
+    into a hash reference containing the decoded key/value map with possible
+    Unicode in the strings.  If there are any problems, sends 400 Bad
+    Request back to client and exists without returning.
 
 # AUTHOR
 
