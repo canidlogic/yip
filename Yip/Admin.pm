@@ -33,11 +33,24 @@ Yip::Admin - Common utilities for administration CGI scripts.
   
   # Send a Set-Cookie header to client with new verification cookie
   $yad->sendCookie;
+  
+  # Send a Set-Cookie header to client that cancels cookie
+  $yad->cancelCookie;
+  
+  # Send a standard error response for an invalid request method
+  Yip::Admin->invalid_method;
+  
+  # Send a standard error response for a bad request
+  Yip::Admin->bad_request;
+  
+  # Read data sent from HTTP client as raw bytes
+  my $octets = Yip::Admin->read_client;
 
 =head1 DESCRIPTION
 
 Module that contains common support functions for administration CGI
-scripts.
+scripts.  Some functions are available as class methods, others need a
+utility object to be constructed, as described below.
 
 First, you connect to the Yip CMS database using C<Yip::DB>.  Then, you
 pass that database connection object to the C<Yip::Admin> constructor to
@@ -96,6 +109,7 @@ sub lbcrlf {
 #
 my $err_insecure = q{Content-Type: text/html; charset=utf-8
 Status: 403 Forbidden
+Cache-Control: no-store
 
 <!DOCTYPE html>
 <html lang="en">
@@ -114,6 +128,7 @@ $err_insecure = lbcrlf($err_insecure);
 #
 my $err_unauth = q{Content-Type: text/html; charset=utf-8
 Status: 403 Forbidden
+Cache-Control: no-store
 
 <!DOCTYPE html>
 <html lang="en">
@@ -127,6 +142,44 @@ Status: 403 Forbidden
 </html>
 };
 $err_unauth = lbcrlf($err_unauth);
+
+# Standard response sent when client indicates method not supported
+#
+my $err_method = q{Content-Type: text/html; charset=utf-8
+Status: 405 Method Not Allowed
+Cache-Control: no-store
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>405 Method Not Allowed</title>
+  </head>
+  <body>
+    <h1>405 Method Not Allowed</h1>
+    <p>Unsupported HTTP request method was used.</p>
+  </body>
+</html>
+};
+$err_method = lbcrlf($err_method);
+
+# Standard response sent when client didn't send a valid POST request
+#
+my $err_request = q{Content-Type: text/html; charset=utf-8
+Status: 400 Bad Request
+Cache-Control: no-store
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>400 Bad Request</title>
+  </head>
+  <body>
+    <h1>400 Bad Request</h1>
+    <p>Client did not send a valid request.</p>
+  </body>
+</html>
+};
+$err_request = lbcrlf($err_request);
 
 =head1 CONSTRUCTOR
 
@@ -520,6 +573,213 @@ sub sendCookie {
   
   # Send the cookie header
   print "Set-Cookie: $cookie_name=$payload; Secure; Path=/\r\n";
+}
+
+=item B<cancelCookie()>
+
+Print a C<Set-Cookie> HTTP header that overwrites any authorization
+cookie the client may have with an invalid value and then immediately
+expires the cookie.  The C<Set-Cookie> line is printed directly to
+standard output, followed by a CR+LF break.
+
+=cut
+
+sub cancelCookie {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Determine the cookie name
+  my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
+  
+  # Send the cookie header
+  print "Set-Cookie: $cookie_name=0; Max-Age=0; Secure; Path=/\r\n";
+}
+
+=back
+
+=head1 STATIC CLASS METHODS
+
+=over 4
+
+=item B<invalid_method()>
+
+Send an HTTP 405 Method Not Allowed back to the client and exit without
+returning.
+
+=cut
+
+sub invalid_method {
+  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  print "$err_method";
+  exit;
+}
+
+=item B<bad_request()>
+
+Send an HTTP 400 Bad Request back to the client and exit without
+returning.
+
+=cut
+
+sub bad_request {
+  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  print "$err_request";
+  exit;
+}
+
+=item B<read_client()>
+
+Read data sent by an HTTP client.  This checks for CONTENT_LENGTH
+environment variable, then reads exactly that from standard input,
+returning the raw bytes in a binary string.  If there are any problems,
+sends 400 Bad Request back to client and exits without returning.
+
+=cut
+
+sub read_client {
+  # Check parameter count
+  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  
+  # CONTENT_LENGTH must be defined
+  (exists $ENV{'CONTENT_LENGTH'}) or bad_request();
+  
+  # Parse content length
+  ($ENV{'CONTENT_LENGTH'} =~ /\A0*[0-9]{1,9}\z/) or bad_request();
+  my $clen = int($ENV{'CONTENT_LENGTH'});
+  
+  # Set raw input
+  binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
+  
+  # Read the data
+  my $data = '';
+  (sysread(STDIN, $data, $clen) == $clen) or bad_request();
+  
+  # Return the data
+  return $data;
+}
+
+=item B<parse_form($str)>
+
+Given a string in application/x-www-form-urlencoded format, parse it
+into a hash reference containing the decoded key/value map with possible
+Unicode in the strings.  If there are any problems, sends 400 Bad
+Request back to client and exists without returning.
+
+=cut
+
+sub parse_form {
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of arguments, stopped";
+  
+  # Ignore class argument
+  shift;
+  
+  # Get the string argument
+  my $str = shift;
+  (not ref($str)) or die "Wrong parameter type, stopped";
+  $str = "$str";
+  
+  # Make sure string is 7-bit US-ASCII (Unicode should be encoded in
+  # percent escapes)
+  ($str =~ /\A[ \t\r\n\x{20}-\x{7e}]*\z/) or bad_request();
+  
+  # Drop all literal whitespace (actual whitespace is encoded)
+  $str =~ s/[ \t\r\n]+//g;
+  
+  # Drop any trailing ampersands
+  $str =~ s/&+\z//;
+  
+  # Split into definitions separated by ampersands
+  my @dfs = split /&/, $str;
+  
+  # Start the hash off empty
+  my %result;
+  
+  # Add all definitions
+  for my $ds (@dfs) {
+    # Parse this definition string into encoded name and encoded value
+    ($ds =~ /\A([^=]+)=(.*)\z/) or bad_request();
+    my $dname = $1;
+    my $dval  = $2;
+    
+    # Decode both the same way
+    for(my $i = 0; $i < 2; $i++) {
+    
+      # Get the current value we are decoding
+      my $v;
+      if ($i == 0) {
+        $v = $dname;
+      } elsif ($i == 1) {
+        $v = $dval;
+      } else {
+        die "Unexpected";
+      }
+      
+      # First decoding step is replace plus signs by spaces
+      $v =~ s/\+/ /g;
+      
+      # Second decoding step is to replace percent escapes for literal
+      # percents with special character 0x100 which will be handled
+      # specially later
+      $v =~ s/%25/\x{100}/g;
+      
+      # Find the positions of all percent escapes
+      my @pci;
+      while ($v =~ /%[0-9A-Fa-f]{2}/g) {
+        push @pci, (pos($v) - 3);
+      }
+      
+      # Starting with last percent escape and moving to first, replace
+      # all with the encoded byte values
+      for(my $j = $#pci; $j >= 0; $j--) {
+        # Get the encoded character as a string
+        my $ec = chr(hex(substr($v, $pci[$j] + 1, 2)));
+        
+        # Splice the character back into the string
+        substr($v, $pci[$j], 3) = $ec;
+      }
+      
+      # Make sure there are no remaining percents (encoded percents were
+      # temporarily set to 0x100 recall)
+      (not ($v =~ /%/)) or bad_request();
+      
+      # Now replace 0x100 with percent signs to get the decoded binary
+      # string
+      $v =~ s/\x{100}/%/g;
+      
+      # Decode binary string as UTF-8
+      eval {
+        $v = decode('UTF-8', $v, Encode::FB_CROAK);
+      };
+      if ($@) {
+        bad_request();
+      }
+      
+      # Update with the decoded value
+      if ($i == 0) {
+        $dname = $v;
+      } elsif ($i == 1) {
+        $dval = $v;
+      } else {
+        die "Unexpected";
+      }
+    }
+    
+    # Make sure we don't already have this variable
+    (not (exists $result{$dname})) or bad_request();
+    
+    # Add variable to hash result
+    $result{$dname} = $dval;
+  }
+  
+  # Return result reference
+  return \%result;
 }
 
 =back
