@@ -5,7 +5,8 @@ use strict;
 use Encode qw(decode encode);
 
 # Non-core dependencies
-use Date::Calc qw(check_date Date_to_Days);
+use Date::Calc qw(check_date Add_Delta_Days Date_to_Days);
+use MIME::Entity;
 use MIME::Parser;
 
 =head1 NAME
@@ -104,15 +105,14 @@ C<MIME::Entity> is used internally to generate MIME format.
 
 When parsing, e-mail fields such as From, To, and Subject are ignored.
 When generating, C<author@example.com> is used as the From field,
-C<yip@example.com> is used as the To field, the Subject is
-C<Yip post 915400> with the UID of the post, and Date is set as the
-timestamp of the post, with UTC timezone.  (Note that the subject and
-date fields are I<not> where the parser determines the UID and timestamp
-of the post from!)
+C<yip@example.com> is used as the To field, and the Subject is
+C<Yip post 915400> with the UID of the post.  (Note that the subject
+field is I<not> where the parser determines the UID of the post from!
+The manifest is what determines the UID.)
 
 The first entity attached to the MIME message must be a C<text/plain>
-file.  Its name is ignored by the parser, but set to C<manifest.txt> by
-the generator.  The generator will use 7bit encoding and specify inline
+file.  Its name is ignored by the parser, but set to C<manifest> by the
+generator.  The generator will use 7bit encoding and specify inline
 disposition.  It has the following format:
 
   YIP 915400 2022-05-05T11:54:29
@@ -134,9 +134,9 @@ Finally, the last line just has C<END>.
 
 After the manifest file always comes another file that must be
 C<text/plain; charset=utf-8>.  Its name is ignored by the parser, but
-set to C<post.txt> by the generator.  It contains the template code for
-the post, and the part is encoded by the generator in quoted-printable
-and set to attachment disposition.
+set to C<post> by the generator.  It contains the template code for the
+post, and the part is encoded by the generator in base64 and set to
+attachment disposition.
 
 After the template code part comes the sequence of zero or more
 attachments, which must match what is given in the manifest file.  The
@@ -388,6 +388,467 @@ sub loadMIME {
   $self->{'_body'} = $post_code;
   $self->{'_att'}  = \%post_att;
 }
+
+=item B<uid([uid])>
+
+If invoked without a parameter, returns the UID of the object, which is
+an integer in range [100000, 999999].  If invoked with a parameter,
+takes a new UID to set, which must be an integer in that same range.
+
+=cut
+
+sub uid {
+  
+  # Check parameter count
+  (($#_ == 0) or ($#_ == 1)) or
+    die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+
+  # Handle operation
+  if ($#_ >= 0) {
+    # SET property
+    my $param = shift;
+    ((not ref($param)) and (int($param) == $param)) or
+      die "Wrong parameter type, stopped";
+    $param = int($param);
+    
+    (($param >= 100000) and ($param <= 999999)) or
+      die "UID out of range, stopped";
+    
+    $self->{'_uid'} = $param;
+  
+  } else {
+    # GET property
+    return $self->{'_uid'};
+  }
+}
+
+=item B<date([datestring])>
+
+If invoked without a parameter, returns the timestamp of the object,
+which is a string in C<yyyy-mm-ddThh:mm:ss> format.  If invoked with a
+parameter, takes a new timestamp to set, which must be a string with
+that same format.
+
+=cut
+
+sub date {
+  
+  # Check parameter count
+  (($#_ == 0) or ($#_ == 1)) or
+    die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Handle operation
+  if ($#_ >= 0) {
+    # SET property
+    my $param = shift;
+    (not ref($param)) or die "Wrong parameter type, stopped";
+    $param = "$param";
+    
+    ($param =~ /\A
+                  ([0-9]{4})
+                    \-
+                  ([0-9]{2})
+                    \-
+                  ([0-9]{2})
+                    T
+                  ([0-9]{2})
+                    :
+                  ([0-9]{2})
+                    :
+                  ([0-9]{2})
+                \z/x) or
+      die "Invalid timestamp value, stopped";
+    
+    my $year   = int($1);
+    my $month  = int($2);
+    my $day    = int($3);
+    my $hour   = int($4);
+    my $minute = int($5);
+    my $second = int($6);
+    
+    (($year >= 1970) and ($year <= 4999)) or
+      die "Year out of range, stopped";
+    (($month >= 1) and ($month <= 12)) or
+      die "Month out of range, stopped";
+    (($day >= 1) and ($day <= 31)) or
+      die "Day out of range, stopped";
+    (($hour >= 0) and ($hour <= 23)) or
+      die "Hour out of range, stopped";
+    (($minute >= 0) and ($minute <= 59)) or
+      die "Minute out of range, stopped";
+    (($second >= 0) and ($second <= 59)) or
+      die "Second out of range, stopped";
+    
+    (check_date($year, $month, $day)) or
+      die "Invalid date, stopped";
+    
+    my $ts = Date_to_Days($year, $month, $day) 
+              - Date_to_Days(1970, 1, 1);
+    $ts = ($ts * 86400)
+              + ($hour * 3600)
+              + ($minute * 60)
+              + $second;
+    
+    $self->{'_date'} = $ts;
+  
+  } else {
+    # GET property
+    my $dv = int($self->{'_date'} / 86400);
+    my $tv = $self->{'_date'} - ($dv * 86400);
+    
+    my ($year, $month, $day) = Add_Delta_Days(1970, 1, 1, $dv);
+    my $hour = int($tv / 3600);
+    $tv = $tv % 3600;
+    my $minute = int($tv / 60);
+    $tv = $tv % 60;
+    my $second = $tv;
+    
+    return sprintf("%04d-%02d-%02dT%02d:%02d:%02d",
+                    $year, $month, $day,
+                    $hour, $minute, $second);
+  }
+}
+
+=item B<body([string])>
+
+If invoked without a parameter, returns the template code within the
+body as a Unicode string.  If invoked with a parameter, takes a new
+Unicode string to set as the body.  The Unicode string may contain any
+Unicode codepoints except for surrogates.
+
+=cut
+
+sub body {
+  
+  # Check parameter count
+  (($#_ == 0) or ($#_ == 1)) or
+    die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Handle operation
+  if ($#_ >= 0) {
+    # SET property
+    my $param = shift;
+    (not ref($param)) or die "Wrong parameter type, stopped";
+    $param = "$param";
+    
+    ($param =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or
+      die "String contains invalid codepoints, stopped";
+    
+    $self->{'_body'} = encode('UTF-8', $param, Encode::FB_CROAK);
+  
+  } else {
+    # GET property
+    return decode('UTF-8', $self->{'_body'}, Encode::FB_CROAK);
+  }
+}
+
+=item B<attlist()>
+
+Returns a list (in list context) containing all the attachment indices
+in ascending order.  May be an empty list if no attachments defined.
+
+=cut
+
+sub attlist {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Since attachment indices are four digits and begin with non-zero
+  # digit, we can just use a string sort
+  my @result = sort keys %{$self->{'_att'}};
+  
+  # Replace each element in the result array with its integer equivalent
+  @result = map(int, @result);
+  
+  # Return result
+  return @result;
+}
+
+=item B<atttype(att_index[, typename])>
+
+If invoked with one parameter, returns the data type of the attachment
+that has the given attachment index.  If invoked with two parameters,
+sets the data type of the attachment with the given attachment index.
+An attachment with the given index must already exist or a fatal error
+occurs.  The typename must be a string of one to 31 ASCII alphanumerics
+and underscores.
+
+=cut
+
+sub atttype {
+  
+  # Check parameter count
+  (($#_ == 1) or ($#_ == 2)) or
+    die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Get attachment index
+  my $ai = shift;
+  ((not ref($ai)) and (int($ai) == $ai)) or
+    die "Wrong parameter type, stopped";
+  $ai = int($ai);
+  
+  # Check that attachment index defined
+  (exists $self->{'_att'}->{"$ai"}) or
+    die "Can't find attachment index, stopped";
+  
+  # Handle operation
+  if ($#_ >= 0) {
+    # SET property
+    my $param = shift;
+    (not ref($param)) or die "Wrong parameter type, stopped";
+    $param = "$param";
+    
+    ($param =~ /\A[A-Za-z0-9_]{1,31}\z/) or
+      die "Invalid data type name, stopped";
+    
+    $self->{'_att'}->{"$ai"}->[0] = $param;
+  
+  } else {
+    # GET property
+    return $self->{'_att'}->{"$ai"}->[0];
+  }
+}
+
+=item B<attdata(att_index[, octets])>
+
+If invoked with one parameter, returns the raw binary string data of the
+attachment that has the given attachment index.  If invoked with two
+parameters, sets the raw binary data of the attachment with the given
+attachment index.
+
+=cut
+
+sub attdata {
+  
+  # Check parameter count
+  (($#_ == 1) or ($#_ == 2)) or
+    die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Get attachment index
+  my $ai = shift;
+  ((not ref($ai)) and (int($ai) == $ai)) or
+    die "Wrong parameter type, stopped";
+  $ai = int($ai);
+  
+  # Check that attachment index defined
+  (exists $self->{'_att'}->{"$ai"}) or
+    die "Can't find attachment index, stopped";
+  
+  # Handle operation
+  if ($#_ >= 0) {
+    # SET property
+    my $param = shift;
+    (not ref($param)) or die "Wrong parameter type, stopped";
+    $param = "$param";
+    
+    ($param =~ /\A[\x{0}-\x{ff}]*\z/) or
+      die "Invalid binary data, stopped";
+    
+    $self->{'_att'}->{"$ai"}->[1] = $param;
+  
+  } else {
+    # GET property
+    return $self->{'_att'}->{"$ai"}->[1];
+  }
+}
+
+=item B<attdrop(att_index)>
+
+Drop the attachment with the given index, if it exists.  Does nothing if
+the given attachment index does not exist.  The index however must be an
+integer in range [1000, 9999] or a fatal error occurs.
+
+=cut
+
+sub attdrop {
+  
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Get attachment index
+  my $ai = shift;
+  ((not ref($ai)) and (int($ai) == $ai)) or
+    die "Wrong parameter type, stopped";
+  $ai = int($ai);
+  
+  # Check attachment index range
+  (($ai >= 1000) and ($ai <= 9999)) or
+    die "Attachment index out of range, stopped";
+  
+  # If attachment exists, delete it
+  if (exists($self->{'_att'}->{"$ai"})) {
+    delete $self->{'_att'}->{"$ai"};
+  }
+}
+
+=item B<attnew(att_index, data_type, octets)>
+
+Add or overwrite an attachment.  att_index is the index of the
+attachment, which must be an integer in range [1000, 9999].  If this
+index is not already used, a new attachment will be added.  If this
+index is already in use, the new attachment will replace the old one.
+data_type is the name of data type, which must be a string of 1 to 31
+ASCII alphanumerics and underscores.  octets is the raw binary data.
+
+=cut
+
+sub attnew {
+  
+  # Check parameter count
+  ($#_ == 3) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Get attachment index
+  my $ai = shift;
+  ((not ref($ai)) and (int($ai) == $ai)) or
+    die "Wrong parameter type, stopped";
+  $ai = int($ai);
+  
+  # Check attachment index range
+  (($ai >= 1000) and ($ai <= 9999)) or
+    die "Attachment index out of range, stopped";
+  
+  # Get and check data type
+  my $data_type = shift;
+  (not ref($data_type)) or die "Wrong parameter type, stopped";
+  $data_type = "$data_type";
+  
+  ($data_type =~ /\A[A-Za-z0-9_]{1,31}\z/) or
+    die "Invalid data type name, stopped";
+  
+  # Get and check raw binary data
+  my $raw_data = shift;
+  (not ref($raw_data)) or die "Wrong parameter type, stopped";
+  $raw_data = "$raw_data";
+  
+  ($raw_data =~ /\A[\x{0}-\x{ff}]*\z/) or
+    die "Invalid binary data, stopped";
+  
+  # Add/overwrite attachment
+  $self->{'_att'}->{"$ai"} = [$data_type, $raw_data];
+}
+
+=item B<encodeMIME()>
+
+Encode the current state of the post object into a MIME message.
+Returns a binary string containing the whole MIME message.  This binary
+string is 7-bit safe.
+
+=cut
+
+sub encodeMIME {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # First we need to build the manifest file, start with the signature
+  # line
+  my $mani = 'YIP';
+  $mani = $mani . " $self->{'_uid'}";
+  $mani = $mani . ' ' . $self->date;
+  $mani = $mani . "\r\n";
+  
+  # Now get the sorted list of attachment indices
+  my @atl = $self->attlist;
+  
+  # Add the attachment records to the manifest
+  for(my $i = 0; $i <= $#atl; $i++) {
+    my $dt = $self->atttype($atl[$i]);
+    $mani = $mani . "$atl[$i] $dt\r\n";
+  }
+  
+  # Finish the manifest
+  $mani = $mani . "END\r\n";
+  
+  # Create the MIME entity
+  my $msg = MIME::Entity->build(
+                    Type     => 'multipart/mixed',
+                    Encoding => '7bit',
+                    From     => 'author@example.com',
+                    To       => 'yip@example.com',
+                    Subject  => "Yip post " . $self->{'_uid'},
+  );
+  
+  # Attach the manifest
+  $msg->attach(
+          Data        => $mani,
+          Type        => 'text/plain',
+          Encoding    => '7bit',
+          Filename    => 'manifest',
+          Disposition => 'inline'
+  );
+  
+  # Attach the template code
+  $msg->attach(
+          Data        => $self->{'_body'},
+          Type        => 'text/plain',
+          Charset     => 'utf-8',
+          Encoding    => 'base64',
+          Filename    => 'post',
+          Disposition => 'attachment'
+  );
+  
+  # Attach each of the attachments in sorted order of index
+  for(my $i = 0; $i <= $#atl; $i++) {
+    $msg->attach(
+            Data        => $self->attdata($atl[$i]),
+            Type        => 'application/octet-stream',
+            Encoding    => 'base64',
+            Filename    => 'att' . $atl[$i],
+            Disposition => 'attachment'
+    );
+  }
+  
+  # Return the whole MIME message converted into a string
+  return $msg->stringify;
+}
+
+=back
 
 =head1 AUTHOR
 
