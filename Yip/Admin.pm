@@ -71,18 +71,62 @@ though!
 
 =cut
 
+# ===============
+# String function
+# ===============
+
+# Given a string parameter, make sure that all line breaks are CR+LF and
+# return the result.
+#
+sub lbcrlf {
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  my $str = shift;
+  (not ref($str)) or die "Wrong parameter type, stopped";
+  $str = "$str";
+  $str =~ s/\r//g;
+  $str =~ s/\n/\r\n/g;
+  return $str;
+}
+
 # =========
 # Constants
 # =========
 
 # The complete response message sent if client is not in HTTPS
 #
-my $err_insecure = q{Content-Type: text/plain
+my $err_insecure = q{Content-Type: text/html; charset=utf-8
 Status: 403 Forbidden
 
-HTTP 403: Forbidden
-This script must be accessed over HTTPS
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>403 Forbidden</title>
+  </head>
+  <body>
+    <h1>403 Forbidden</h1>
+    <p>You must use HTTPS to access this script.</p>
+  </body>
+</html>
 };
+$err_insecure = lbcrlf($err_insecure);
+
+# The complete response message sent if client is not authorized
+#
+my $err_unauth = q{Content-Type: text/html; charset=utf-8
+Status: 403 Forbidden
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>403 Forbidden</title>
+  </head>
+  <body>
+    <h1>403 Forbidden</h1>
+    <p>You must be logged in to use this script.</p>
+  </body>
+</html>
+};
+$err_unauth = lbcrlf($err_unauth);
 
 =head1 CONSTRUCTOR
 
@@ -102,6 +146,9 @@ C<HTTPS> is defined, indicating that the connection is secured over
 HTTPS.  If this is not the case, this constructor will send HTTP 403
 Forbidden to the client with a message that they need to connect over
 HTTPS and then the function will exit without returning to the caller.
+
+Furthermore, the constructor will set both standard input and standard
+output into raw binary mode.
 
 When loading configuration variables into memory, this constructor will
 make sure that all of these recognized variables are defined:
@@ -165,6 +212,10 @@ sub load {
   my $dbc = shift;
   (ref($dbc) and $dbc->isa('Yip::DB')) or
     die "Wrong parameter type, stopped";
+  
+  # Set raw input and output
+  binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
   
   # Make sure we are in HTTPS
   unless (exists $ENV{'HTTPS'}) {
@@ -354,7 +405,124 @@ sub load {
   return $self;
 }
 
-# @@TODO:
+=back
+
+=head1 INSTANCE METHODS
+
+=over 4
+
+=item B<hasCookie()>
+
+Returns 1 if the HTTP client has a valid verification cookie, 0 if not.
+You should only use this function if the script supports both authorized
+and unauthorized clients.  In the more usual case that only authorized
+clients are allowed, see C<checkCookie>.
+
+=cut
+
+sub hasCookie {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Return result
+  return $self->{'_verify'};
+}
+
+=item B<checkCookie()>
+
+Make sure the HTTP client has a valid verification cookie.  If so, then
+this function returns without doing anything further.  If not, an error
+message is set to the HTTP client and this function will exit the script
+without returning.
+
+=cut
+
+sub checkCookie {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Print error if client not authorized
+  unless ($self->{'_verify'}) {
+    print "$err_unauth";
+    exit;
+  }
+}
+
+=item B<getVar(key)>
+
+Get the cached value of a variable from the C<cvars> table.  C<key> is
+the name of the variable to query.  A fatal error occurs if the key is
+not recognized.  C<epoch> C<lastmod> C<authlimit> and C<authcost> are
+returned as integer values, everything else is returned as strings.
+Path variables will already have been decoded from UTF-8.
+
+=cut
+
+sub getVar {
+  
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameter
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $k = shift;
+  (not ref($k)) or die "Wrong parameter type, stopped";
+  $k = "$k";
+  
+  # Check that key is known
+  (exists $self->{'_cvar'}->{$k}) or die "Unrecognized key, stopped";
+  
+  # Return the cached key value
+  return $self->{'_cvar'}->{$k};
+}
+
+=item B<sendCookie()>
+
+Print a C<Set-Cookie> HTTP header that contains a fresh, valid
+authorization cookie.  The C<Set-Cookie> line is printed directly to
+standard output, followed by a CR+LF break.
+
+=cut
+
+sub sendCookie {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Determine the cookie name
+  my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
+  
+  # Determine the cookie payload
+  my $auth_time = sprintf("%x", int(time / 60));
+  my $auth_hmac = hmac_md5(
+                    $auth_time, $self->{'_cvar'}->{'authsecret'});
+  my $payload = "$auth_time|$auth_hmac";
+  
+  # Send the cookie header
+  print "Set-Cookie: $cookie_name=$payload; Secure; Path=/\r\n";
+}
+
+=back
 
 =head1 AUTHOR
 
