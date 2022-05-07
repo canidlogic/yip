@@ -7,7 +7,6 @@ use MIME::Base64;
 
 # Non-core dependencies
 use Crypt::Random qw(makerandom_octet);
-use HTML::Template;
 
 # Yip modules
 use Yip::DB;
@@ -45,16 +44,15 @@ client's key will be canceled.
 
 # GET form template.
 #
-# This template uses the following template variables:
-#
-#   pageself : path to this script itself
+# This template uses the standard template variables defined by
+# Yip::Admin.
 #
 # The form action POSTs back to this script.
 #
 my $get_template = Yip::Admin->format_html('Logout', q{
     <h1>Logout</h1>
     <form
-        action="<TMPL_VAR NAME=pageself>"
+        action="<TMPL_VAR NAME=_pathlogout>"
         method="post"
         enctype="application/x-www-form-urlencoded">
       <input type="hidden" name="logout" value="1">
@@ -83,33 +81,13 @@ if ($request_method eq 'GET') { # ======================================
   # GET method so start by connecting to database and loading admin
   # utilities
   my $dbc = Yip::DB->connect($config_dbpath, 0);
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
   # Check that client is authorized
-  $yad->checkCookie;
+  $yap->checkCookie;
   
-  # Fill in template state
-  my %tvar;
-  $tvar{'pageself'} = $yad->getVar('pathlogout');
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$get_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Finish headers and print generated template
-  print "\r\n$tcode";
+  # Send the template form
+  $yap->sendTemplate($get_template);
   
 } elsif ($request_method eq 'POST') { # ================================
   # POST method so start by connecting to database and loading admin
@@ -118,10 +96,10 @@ if ($request_method eq 'GET') { # ======================================
   # transaction
   my $dbc = Yip::DB->connect($config_dbpath, 0);
   my $dbh = $dbc->beginWork('w');
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
   # Check that client is authorized
-  $yad->checkCookie;
+  $yap->checkCookie;
   
   # Read all the POSTed form variables
   my $vars = Yip::Admin->parse_form(Yip::Admin->read_client);
@@ -138,15 +116,9 @@ if ($request_method eq 'GET') { # ======================================
   # Finish the transaction
   $dbc->finishWork;
   
-  # Write main response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Cancel client's cookie
-  $yad->cancelCookie;
-  
-  # Finish headers and print logout page
-  print "\r\n$done_page";
+  # Send the logged out page to client and cancel their cookie
+  $yap->cookieCancel;
+  $yap->sendHTML($done_page);
   
 } else { # =============================================================
   die "Unexpected";
