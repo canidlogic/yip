@@ -293,24 +293,9 @@ sub send_done {
 # CGI entrypoint
 # ==============
 
-# Check that we have a request method
+# Get normalized method
 #
-(exists $ENV{'REQUEST_METHOD'}) or
-  die "Script must be invoked as a CGI script, stopped";
-
-# Get method and normalize to GET or POST or ?
-#
-my $request_method = $ENV{'REQUEST_METHOD'};
-if (($request_method =~ /\AGET\z/i)
-    or ($request_method =~ /\AHEAD\z/i)) {
-  $request_method = "GET";
-
-} elsif ($request_method =~ /\APOST\z/i) {
-  $request_method = "POST";
-
-} else {
-  $request_method = "?";
-}
+my $request_method = Yip::Admin->http_method;
 
 # Handle the different methods
 #
@@ -436,8 +421,7 @@ if ($request_method eq 'GET') { # ======================================
   send_done($yad);
   
 } else { # =============================================================
-  # Unsupported method
-  Yip::Admin->invalid_method;
+  die "Unexpected";
 }
 
 =head1 AUTHOR
