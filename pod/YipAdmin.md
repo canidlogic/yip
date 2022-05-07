@@ -11,6 +11,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
     my $dbc = Yip::DB->connect($config_dbpath, 0);
     my $yad = Yip::Admin->load($dbc);
     
+    # Check that invoked as CGI script and get method
+    my $method = Yip::Admin->http_method;
+    
     # Check for verification cookie for scripts that can work without it
     if ($yad->hasCookie) {
       ...
@@ -203,6 +206,13 @@ though!
     into a hash reference containing the decoded key/value map with possible
     Unicode in the strings.  If there are any problems, sends 400 Bad
     Request back to client and exists without returning.
+
+- **http\_method()**
+
+    Check that there is a CGI environment variable REQUEST\_METHOD and fatal
+    error if not.  Then, get the REQUEST\_METHOD and normalize it to 'GET' or
+    'POST'.  If it can't be normalized to one of those two, invoke
+    invalid\_method.  Return the normalized method.
 
 # AUTHOR
 
