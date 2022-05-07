@@ -20,6 +20,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
   my $dbc = Yip::DB->connect($config_dbpath, 0);
   my $yad = Yip::Admin->load($dbc);
   
+  # Check that invoked as CGI script and get method
+  my $method = Yip::Admin->http_method;
+  
   # Check for verification cookie for scripts that can work without it
   if ($yad->hasCookie) {
     ...
@@ -401,7 +404,7 @@ sub load {
   
   # Proceed with cookie check if cookie environment variable
   if (exists $ENV{'HTTP_COOKIE'}) {
-  
+    
     # Split the cookie jar into definitions
     my @jar = split /;/, $ENV{'HTTP_COOKIE'};
     
@@ -414,7 +417,7 @@ sub load {
       $ck =~ s/[ \t\r\n]+//g;
       
       # Only proceed if we can parse the cookie
-      if ($ck =~ /\A([A-Za-z0-9_]+)=([\x{21}-\x{7e}]+)\z/) {
+      if ($ck =~ /\A([A-Za-z0-9_\-]+)=([\x{21}-\x{7e}]+)\z/) {
       
         # Get name and value
         my $ck_name = $1;
@@ -445,7 +448,7 @@ sub load {
           
           # Check HMAC and set verify flag only if equal to payload
           # value
-          if (hmac_md5($ck_htime, $self->{'_cvar'}->{'authsecret'})
+          if (hmac_md5_hex($ck_htime, $self->{'_cvar'}->{'authsecret'})
                 eq $ck_hmac) {
             $self->{'_verify'} = 1;
           }
@@ -567,7 +570,7 @@ sub sendCookie {
   
   # Determine the cookie payload
   my $auth_time = sprintf("%x", int(time / 60));
-  my $auth_hmac = hmac_md5(
+  my $auth_hmac = hmac_md5_hex(
                     $auth_time, $self->{'_cvar'}->{'authsecret'});
   my $payload = "$auth_time|$auth_hmac";
   
@@ -780,6 +783,40 @@ sub parse_form {
   
   # Return result reference
   return \%result;
+}
+
+=item B<http_method()>
+
+Check that there is a CGI environment variable REQUEST_METHOD and fatal
+error if not.  Then, get the REQUEST_METHOD and normalize it to 'GET' or
+'POST'.  If it can't be normalized to one of those two, invoke
+invalid_method.  Return the normalized method.
+
+=cut
+
+sub http_method {
+  # Check parameter count
+  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  
+  # REQUEST_METHOD must be defined
+  (exists $ENV{'REQUEST_METHOD'}) or
+    die "Script must be invoked as a CGI script, stopped";
+  
+  # Get method and normalize to GET or POST
+  my $request_method = $ENV{'REQUEST_METHOD'};
+  if (($request_method =~ /\AGET\z/i)
+      or ($request_method =~ /\AHEAD\z/i)) {
+    $request_method = "GET";
+  
+  } elsif ($request_method =~ /\APOST\z/i) {
+    $request_method = "POST";
+  
+  } else {
+    invalid_method();
+  }
+  
+  # Return the normalized method
+  return $request_method;
 }
 
 =back
