@@ -40,6 +40,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
   # Send a Set-Cookie header to client that cancels cookie
   $yad->cancelCookie;
   
+  # Generate HTML or HTML template in standard format
+  my $html = Yip::Admin->format_html($title, $body_code);
+  
   # Send a standard error response for an invalid request method
   Yip::Admin->invalid_method;
   
@@ -87,102 +90,144 @@ though!
 
 =cut
 
-# ===============
-# String function
-# ===============
-
-# Given a string parameter, make sure that all line breaks are CR+LF and
-# return the result.
-#
-sub lbcrlf {
-  ($#_ == 0) or die "Wrong number of parameters, stopped";
-  my $str = shift;
-  (not ref($str)) or die "Wrong parameter type, stopped";
-  $str = "$str";
-  $str =~ s/\r//g;
-  $str =~ s/\n/\r\n/g;
-  return $str;
-}
-
 # =========
 # Constants
 # =========
 
-# The complete response message sent if client is not in HTTPS
+# The boilerplate code, divided into sections, which is used by the
+# format_html function
 #
-my $err_insecure = q{Content-Type: text/html; charset=utf-8
-Status: 403 Forbidden
-Cache-Control: no-store
-
-<!DOCTYPE html>
+my $boilerplate_1 = q{<!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>403 Forbidden</title>
+    <meta charset="utf-8"/>
+    <title>};
+
+my $boilerplate_2 = q{</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"/>
+    <style>
+
+body {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-bottom: 5em;
+  font-family: sans-serif;
+  max-width: 35em;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: rgb(222, 222, 222);
+  color: black;
+}
+
+:link {
+  text-decoration: none;
+  color: blue
+}
+
+:visited {
+  text-decoration: none;
+  color: blue
+}
+
+h1 {
+  font-family: sans-serif;
+}
+
+#homelink {
+  margin-top: 0;
+  margin-bottom: 2em;
+  font-size: larger;
+}
+
+form {
+  margin-top: 2em;
+}
+
+.ctlbox {
+  margin-top: 0.75em;
+  margin-bottom: 0.5em;
+}
+
+.ctlbox div {
+  margin-top: 0.25em;
+  margin-right: 1em;
+}
+
+.btnbox {
+  margin-top: 0.75em;
+  margin-bottom: 0.5em;
+  text-align: right;
+}
+
+.pwbox {
+  width: 100%;
+  border: thin solid;
+  padding: 0.5em;
+}
+
+.btn {
+  border: medium outset;
+  padding: 0.5em;
+  font-size: larger;
+}
+
+    </style>
   </head>
-  <body>
-    <h1>403 Forbidden</h1>
-    <p>You must use HTTPS to access this script.</p>
-  </body>
+  <body>};
+
+my $boilerplate_3 = q{  </body>
 </html>
 };
-$err_insecure = lbcrlf($err_insecure);
+
+# The complete response message sent if client is not in HTTPS
+#
+my $err_insecure =
+  "Content-Type: text/html; charset=utf-8\r\n"
+  . "Status: 403 Forbidden\r\n"
+  . "Cache-Control: no-store\r\n"
+  . "\r\n"
+  . Yip::Admin->format_html('403 Forbidden', q{
+    <h1>403 Forbidden</h1>
+    <p>You must use HTTPS to access this script.</p>
+});
 
 # The complete response message sent if client is not authorized
 #
-my $err_unauth = q{Content-Type: text/html; charset=utf-8
-Status: 403 Forbidden
-Cache-Control: no-store
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>403 Forbidden</title>
-  </head>
-  <body>
+my $err_unauth =
+  "Content-Type: text/html; charset=utf-8\r\n"
+  . "Status: 403 Forbidden\r\n"
+  . "Cache-Control: no-store\r\n"
+  . "\r\n"
+  . Yip::Admin->format_html('403 Forbidden', q{
     <h1>403 Forbidden</h1>
     <p>You must be logged in to use this script.</p>
-  </body>
-</html>
-};
-$err_unauth = lbcrlf($err_unauth);
+});
 
 # Standard response sent when client indicates method not supported
 #
-my $err_method = q{Content-Type: text/html; charset=utf-8
-Status: 405 Method Not Allowed
-Cache-Control: no-store
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>405 Method Not Allowed</title>
-  </head>
-  <body>
+my $err_method =
+  "Content-Type: text/html; charset=utf-8\r\n"
+  . "Status: 405 Method Not Allowed\r\n"
+  . "Cache-Control: no-store\r\n"
+  . "\r\n"
+  . Yip::Admin->format_html('405 Method Not Allowed', q{
     <h1>405 Method Not Allowed</h1>
     <p>Unsupported HTTP request method was used.</p>
-  </body>
-</html>
-};
-$err_method = lbcrlf($err_method);
+});
 
 # Standard response sent when client didn't send a valid POST request
 #
-my $err_request = q{Content-Type: text/html; charset=utf-8
-Status: 400 Bad Request
-Cache-Control: no-store
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>400 Bad Request</title>
-  </head>
-  <body>
+my $err_request =
+  "Content-Type: text/html; charset=utf-8\r\n"
+  . "Status: 400 Bad Request\r\n"
+  . "Cache-Control: no-store\r\n"
+  . "\r\n"
+  . Yip::Admin->format_html('400 Bad Request', q{
     <h1>400 Bad Request</h1>
     <p>Client did not send a valid request.</p>
-  </body>
-</html>
-};
-$err_request = lbcrlf($err_request);
+});
 
 =head1 CONSTRUCTOR
 
@@ -609,6 +654,72 @@ sub cancelCookie {
 =head1 STATIC CLASS METHODS
 
 =over 4
+
+=item B<format_html(title, body_code)>
+
+Generate HTML or an HTML template according to the "house style" for
+administration scripts.  C<title> is the page title to write into the
+head section I<which should be escaped properly> but I<not> include the
+surrounding title element start and end blocks.  C<body_code> is what
+should be pasted between the body start and end element.
+
+This function will generate all the necessary boilerplate code and add a
+stylesheet.  The following special CSS IDs are classes are defined in
+the stylesheet:
+
+  #homelink
+  The DIV containing link back to control panel
+  
+  .ctlbox
+  DIVs containing two sub-DIVs, one for label and second for control
+  
+  .btnbox
+  DIV for submit button
+  
+  .pwbox
+  CSS class for password input boxes
+  
+  .btn
+  CSS class for submit buttons
+
+This function will also normalize all line breaks to CR+LF before
+returning the result.
+
+=cut
+
+sub format_html {
+  
+  # Check parameter count
+  ($#_ == 2) or die "Wrong number of arguments, stopped";
+  
+  # Drop the self argument
+  shift;
+  
+  # Get parameters and check
+  my $title = shift;
+  my $body  = shift;
+  
+  (not ref($title)) or die "Wrong parameter type, stopped";
+  (not ref($body )) or die "Wrong parameter type, stopped";
+  
+  $title = "$title";
+  $body  = "$body";
+  
+  # Assemble the full code
+  my $code =
+    $boilerplate_1
+    . $title
+    . $boilerplate_2
+    . $body
+    . $boilerplate_3;
+  
+  # Normalize line breaks to CR+LF
+  $code =~ s/\r//g;
+  $code =~ s/\n/\r\n/g;
+  
+  # Return assembled code
+  return $code;
+}
 
 =item B<invalid_method()>
 
