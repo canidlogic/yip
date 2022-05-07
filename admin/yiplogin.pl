@@ -59,31 +59,22 @@ a link is provided to the login page to retry.
 #
 #   pass : the password
 #
-my $get_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Login</title>
-  </head>
-  <body>
+my $get_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
     <form
         action="<TMPL_VAR NAME=pageself>"
         method="post"
         enctype="application/x-www-form-urlencoded">
-      <table>
-        <tr>
-          <td>Password:</td>
-          <td><input type="password" name="pass"></td>
-        </tr>
-        <tr><td colspan="2">&nbsp;</td></tr>
-        <tr>
-          <td colspan="2"><input type="submit" value="Submit"></td>
-        </tr>
-      </table>
+      <div class="ctlbox">
+        <div>Password:</div>
+        <div><input type="password" name="pass" class="pwbox"></div>
+      </div>
+      <div>&nbsp;</div>
+      <div class="btnbox">
+        <input type="submit" value="Submit" class="btn">
+      </div>
     </form>
-  </body>
-</html>
-};
+});
 
 # POST error result template.
 #
@@ -91,18 +82,11 @@ my $get_template = q{<!DOCTYPE html>
 #
 #   pageself : path to this script itself
 #
-my $err_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Login</title>
-  </head>
-  <body>
+my $err_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
     <p>Login failed.  <a href="<TMPL_VAR NAME=pageself>">Try
     again</a></p>
-  </body>
-</html>
-};
+});
 
 # POST success result template.
 #
@@ -110,18 +94,13 @@ my $err_template = q{<!DOCTYPE html>
 #
 #   homelink : path to the control panel
 #
-my $done_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Login</title>
-  </head>
-  <body>
+my $done_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
     <p>You are now logged in.</p>
-    <p><a href="<TMPL_VAR NAME=homelink>">Control panel</a></p>
-  </body>
-</html>
-};
+    <div id="homelink">
+    <a href="<TMPL_VAR NAME=homelink>">&raquo; Control panel &laquo;</a>
+    </div>
+});
 
 # ===============
 # Local functions
