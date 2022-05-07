@@ -17,6 +17,8 @@ Yip::Admin - Common utilities for administration CGI scripts.
     my $example = $vars->{'example_var'};
     
     # Send standard responses (these calls do not return)
+    Yip::Admin->insecure_protocol;
+    Yip::Admin->not_authorized;
     Yip::Admin->invalid_method;
     Yip::Admin->bad_request;
     
@@ -182,6 +184,16 @@ function for further information.
 
     This function will also normalize all line breaks to CR+LF before
     returning the result.
+
+- **insecure\_protocol()**
+
+    Send an HTTP 403 Forbidden with message indicating that HTTPS is
+    required back to the client and exit without returning.
+
+- **not\_authorized()**
+
+    Send an HTTP 403 Forbidden with message indicating client must log in
+    back to the client and exit without returning.
 
 - **invalid\_method()**
 
