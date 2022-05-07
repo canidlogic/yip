@@ -6,7 +6,7 @@ Yip::Admin - Common utilities for administration CGI scripts.
 
     use Yip::Admin;
     
-    # Check we are running as CGI and get 'GET' or 'POST' method
+    # Check we are running as HTTPS CGI and get 'GET' or 'POST' method
     my $method = Yip::Admin->http_method;
     
     # Read data sent from HTTP client as raw bytes
@@ -16,16 +16,17 @@ Yip::Admin - Common utilities for administration CGI scripts.
     my $vars = Yip::Admin->parse_form($octets);
     my $example = $vars->{'example_var'};
     
+    # Generate HTML or HTML template in "house" CGI style
+    my $html = Yip::Admin->format_html($title, $body_code);
+    
     # Send standard responses (these calls do not return)
     Yip::Admin->insecure_protocol;
     Yip::Admin->not_authorized;
     Yip::Admin->invalid_method;
     Yip::Admin->bad_request;
     
-    # Generate HTML or HTML template in "house" CGI style
-    my $html = Yip::Admin->format_html($title, $body_code);
-    
     # Instance methods require database connection to construct instance
+    use Yip::Admin;
     use Yip::DB;
     use YipConfig;
     
@@ -50,11 +51,22 @@ Yip::Admin - Common utilities for administration CGI scripts.
     # Get any loaded configuration value
     my $epoch = $yap->getVar('epoch');
     
-    # Send a Set-Cookie header to client with new verification cookie
-    $yap->sendCookie;
+    # Change the cookie behavior for send functions
+    $yap->cookieLogin;
+    $yap->cookieCancel;
+    $yap->cookieDefault;
     
-    # Send a Set-Cookie header to client that cancels cookie
-    $yap->cancelCookie;
+    # Add custom template parameter
+    $yap->customParam('example', 'value');
+    
+    # Set a special status code for response
+    $yap->setStatus(403, 'Forbidden');
+    
+    # Respond with a template (does not return)
+    $yap->sendTemplate($tcode);
+    
+    # Respond with non-template HTML code (does not return)
+    $yap->sendHTML($html);
 
 # DESCRIPTION
 
@@ -73,8 +85,8 @@ using the instance functions.
 
 Administrator CGI scripts should always start out with a call to the
 `http_method` instance method, which does a quick check that the script
-was invoked as a CGI script and also determines whether this is a GET or
-POST request.
+was invoked as a CGI script over HTTPS and also determines whether this
+is a GET or POST request.
 
 For most administrator CGI scripts, the next operation will be to get a
 Yip CMS database connection, use that to construct a `Yip::Admin`
@@ -83,15 +95,102 @@ make sure that the client is authorized.  However, the login and
 password reset scripts do not follow this pattern, since they must also
 be able to work with clients who are not authorized yet.
 
-For most administrator CGI scripts, when sending a response back to the
-client, the `sendCookie` function should be called immediately after
-writing the other CGI response headers but before writing the blank line
-that ends the CGI response head.  This will refresh the client's
-authorization cookie.  However, the login, logout, and password reset
-scripts do not follow this pattern.
+Administrator CGI scripts finish in three different ways:
 
-**Note:** The constructor for `Yip::Admin` will put standard input and
-standard output into binary mode.
+- Fatal error
+- Predefined response
+- Send functions
+
+The following subsections describe these three possibilities.
+
+### Fatal error handling
+
+If a fatal error occurs with the Perl `die` or the like, then the
+response is up to the server because the CGI script will not generate a
+normal CGI response in that case.  The usual server behavior is to send
+a generic 500 Internal Server Error page back to the client.
+
+If you are debugging and want more information, add the following near
+the start of the CGI script to get more details on the error page:
+
+    use CGI::Carp qw(fatalsToBrowser);
+
+In production, this should _not_ be included, for security reasons.
+
+Fatal errors should only occur for problems originating within the
+server that have nothing to do with the client.
+
+### Predefined responses
+
+Predefined responses are class methods provided by this module.  They
+include the following:
+
+- `insecure_protocol`
+
+    Used when the client did not connect over secured HTTPS.
+
+- `not_authorized`
+
+    Used when the client is not logged in with a valid cookie.
+
+- `invalid_method`
+
+    Used when the client requested something other than HEAD, GET, or POST.
+
+- `bad_request`
+
+    Used when the client's request is malformed.
+
+All of these predefined responses are used internally by this module,
+but they are provided publicly in case clients want to use them.  (The
+`bad_request` is likely to be useful.)
+
+Since these are class methods, you do not need a database connection or
+a `Yip::Admin` object instance to use them.  This makes them good for
+responding immediately to low-level errors.
+
+### Send functions
+
+The best way to end an administrator script is by calling either the
+`sendTemplate` or `sendHTML` function.  (Internally, the function
+`sendTemplate` is just a wrapper around `sendHTML`.)  It is
+recommended that you use the `format_html` function to generate HTML or
+HTML template code in the "house style" for administrator CGI scripts.
+
+These send functions are instance methods, so you must have an instance
+of `Yip::Admin` in order to use them.  The only difference between the
+two is that `sendTemplate` will perform template processing.
+
+By default, the template processor will make all of the standard path
+variables defined in the `cvars` table available as template variables,
+except that each name is prefixed with an underscore.  If you need
+additional template variables, you can define them with the
+`customParam` function, provided that none of the custom names begin
+with an underscore.
+
+By default, the send functions will use HTTP status 200 'OK'.  If you
+want to set a different status, use the `setStatus` function.
+
+By default, the send functions will give the HTTP a refreshed
+authorization cookie only if the client already has a valid
+authorization cookie.  If the client has no valid authorization cookie,
+the default behavior is to not send any cookie information back to the
+client.  You can explicitly set this default behavior with
+`cookieDefault` if you wish.
+
+If you want to send a refershed authorization cookie to the client in
+all cases, even when the client doesn't already have a cookie, then you
+should call `cookieLogin` to always send a cookie.  This is only
+appropriate for the login script when the client has authorized
+themselves by providing a matching password.
+
+If you want to cancel any authorization cookie the client may have, then
+you should call `cookieCancel`.  This will cause a cookie header to be
+sent to the client that overwrites any existing authorization cookie
+with an invalid value and immediately expires it.  This is appropriate
+for the logout script and the password reset script after the password
+has been changed.  But note that this does _not_ update the secret key
+in the database, which should be done in a proper logout.
 
 ## Configuration variable access
 
@@ -113,16 +212,6 @@ If the POSTed client data is in the usual form data format of
 `parse_form` to decode it into a hashref, which includes Unicode
 support.
 
-## Predefined responses
-
-Class methods are provided for certain predefined responses.  Some of
-these predefined responses are used internally, though they are also
-made public in case the client might need them.
-
-Predefined responses will print a complete CGI response to standard
-output and then exit the script, never returning to caller.  All of the
-predefined responses are for brief error messages.
-
 ## HTML formatting
 
 The `format_html` class method is used by all the predefined responses
@@ -139,21 +228,36 @@ function for further information.
     Check that there is a CGI environment variable REQUEST\_METHOD and fatal
     error if not.  Then, get the REQUEST\_METHOD and normalize it to 'GET' or
     'POST'.  If it can't be normalized to one of those two, invoke
-    invalid\_method.  Return the normalized method.
+    invalid\_method.  Next, check that the CGI environment variable HTTPS is
+    defined, invoking insecure\_protocol if it is not.  Finally, return the
+    normalized method, which is either 'GET' or 'HEAD'.
 
 - **read\_client()**
 
-    Read data sent by an HTTP client.  This checks for CONTENT\_LENGTH
-    environment variable, then reads exactly that from standard input,
-    returning the raw bytes in a binary string.  If there are any problems,
-    sends 400 Bad Request back to client and exits without returning.
+    Read data sent by an HTTP client and return it as a raw binary string.
+
+    First, this checks that the CGI environment variable REQUEST\_METHOD is
+    defined as POST, causing a fatal error if it is not.  Next, this checks
+    for CONTENT\_LENGTH environment variable, then reads exactly that from
+    standard input, returning the raw bytes in a binary string.  If
+    CONTENT\_LENGTH is zero or empty or not defined, then an empty string is
+    returned instead.
+
+    Fatal errors occur if there are any problems with the CONTENT\_LENGTH
+    variable or with reading the data.
+
+    **Note:** This function might set standard input into raw binary mode.
 
 - **parse\_form($str)**
 
     Given a string in application/x-www-form-urlencoded format, parse it
     into a hash reference containing the decoded key/value map with possible
     Unicode in the strings.  If there are any problems, sends 400 Bad
-    Request back to client and exists without returning.
+    Request back to client and exits without returning.
+
+    This function will also check that there is a CONTENT\_TYPE environment
+    variable defined to `application/x-www-form-urlencoded`.  If not, 400
+    Bad REquest is sent back to client.
 
 - **format\_html(title, body\_code)**
 
@@ -216,14 +320,9 @@ function for further information.
     single transaction, including this configuration load, you should begin
     a work block on the `Yip::DB` object before calling this constructor.
 
-    This constructor will also verify that the CGI environment variable
-    `HTTPS` is defined, indicating that the connection is secured over
-    HTTPS.  If this is not the case, this constructor will send HTTP 403
-    Forbidden to the client with a message that they need to connect over
-    HTTPS and then the function will exit without returning to the caller.
-
-    Furthermore, the constructor will set both standard input and standard
-    output into raw binary mode.
+    The database connection is only used during this constructor.  After the
+    return from the constructor, no further reference is made to the
+    database.
 
     When loading configuration variables into memory, this constructor will
     make sure that all of these recognized variables are defined:
@@ -285,22 +384,8 @@ function for further information.
 - **checkCookie()**
 
     Make sure the HTTP client has a valid verification cookie.  If so, then
-    this function returns without doing anything further.  If not, an error
-    message is set to the HTTP client and this function will exit the script
-    without returning.
-
-- **sendCookie()**
-
-    Print a `Set-Cookie` HTTP header that contains a fresh, valid
-    authorization cookie.  The `Set-Cookie` line is printed directly to
-    standard output, followed by a CR+LF break.
-
-- **cancelCookie()**
-
-    Print a `Set-Cookie` HTTP header that overwrites any authorization
-    cookie the client may have with an invalid value and then immediately
-    expires the cookie.  The `Set-Cookie` line is printed directly to
-    standard output, followed by a CR+LF break.
+    this function returns without doing anything further.  If not, the
+    `not_authorized` function is invoked.
 
 - **getVar(key)**
 
@@ -309,6 +394,126 @@ function for further information.
     not recognized.  `epoch` `lastmod` `authlimit` and `authcost` are
     returned as integer values, everything else is returned as strings.
     Path variables will already have been decoded from UTF-8.
+
+- **cookieLogin()**
+
+    Set the special _login_ behavior for cookies when using the send
+    functions.  In this behavior, a fresh verification cookie is always sent
+    to the client, even if they don't have a verification cookie.  This is
+    only appropriate during the login process.
+
+    This function does not actually send any cookie header, but rather just
+    changes an internal setting that will be applied when one of the send
+    functions is called.
+
+- **cookieCancel()**
+
+    Set the special _cancel_ behavior for cookies when using the send
+    functions.  In this behavior, any existing client verification cookie
+    will be overwritten with an invalid value and then immediately expired.
+    This is only appropriate during the logout process.  Note that this
+    function does _not_ change the secret key, which should also be done
+    during the logout process.
+
+    This function does not actually send any cookie header, but rather just
+    changes an internal setting that will be applied when one of the send
+    functions is called.
+
+- **cookieDefault()**
+
+    Set the default behavior for cookies when using the send functions.
+    In this behavior, a fresh verification cookie is always sent to the
+    client only if the client already had a valid verification cookie; else,
+    no cookie header is sent to the client.  This is the default behavior
+    that is always set during construction, but you might need to use this
+    function is you changed the cookie behavior to one of the special
+    settings but now want to change it back.
+
+    This function does not actually send any cookie header, but rather just
+    changes an internal setting that will be applied when one of the send
+    functions is called.
+
+    **Note:**  If a logout simultaneously happens from another script, the
+    default behavior is still to refresh the client cookie if they already
+    had one.  This would appear to be a security flaw in that clients could
+    get their cookies refreshed across a logout, which isn't supposed to be
+    possible.  However, there is actually no flaw here.  All the cookie
+    configuration values were cached during construction, and the refreshed
+    cookie uses these cached values.  Since the cached values includes the
+    secret key _before_ the logout happened, the "refreshed" cookie will
+    not in fact be valid since the secret key has since changed.  This is
+    the appropriate behavior.
+
+- **customParam(name, value)**
+
+    Add a custom template parameter that will be available to templates sent
+    to the `sendTemplate` function.
+
+    By default, all of the path variables from the `cvars` table will be
+    available as template variables, with underscores prefixed to all of
+    the variable names.  (So, for example, `_pathlogin` is the template
+    variable for the `pathlogin` in the `cvars` table.)
+
+    If you need more than this in the templates, you can use this function
+    to add additional variables.  All custom variables must not begin with
+    an underscore, so custom variables are never able to overwrite the
+    standard path variables.
+
+    If you provide a variable name that hasn't been set yet, a new custom
+    variable will be defined.  If you provide a variable name that is 
+    already defined, it will be overwritten with the name value.
+
+    The name must be a string of one to 31 ASCII lowercase letters, digits,
+    and underscores, where the first character is not an underscore.
+
+    The value must be a string, which can hold any Unicode codepoints,
+    excluding surrogates.
+
+- **setStatus(numeric, string)**
+
+    Set the HTTP status code that will be returned.  By default this is
+    200 'OK'.
+
+    Setting the status here will not actually send the status code.
+    Instead, it will update internal state.  The status code will actually
+    be sent when one of the send functions is invoked.
+
+    The `numeric` parameter must be an integer in range 100-599.  The
+    `string` parameter must be a string of US-ASCII printing characters in
+    range \[U+0020, U+007E\] that names the status code.
+
+- **sendTemplate(tcode)**
+
+    Send a template back to the HTTP client and exit script without
+    returning to caller.
+
+    This is a wrapper around `sendHTML`.  This wrapper runs the template
+    and then sends the generated templated to the `sendHTML` function.  By
+    default the template variables available are all the standard path
+    variables from the `cvars` table, except each of their names is
+    prefixed with an underscore.  Custom parameters that were defined by the
+    `customParam` function will also be available.
+
+    See the `sendHTML` function for further details on what happens.
+
+- **sendHTML(html)**
+
+    Send HTML code back to the HTTP client and exit script without returning
+    to caller.
+
+    First, the core status headers are written to the client, using the MIME
+    type `text/html; charset=utf-8` for the content type, sending the
+    current HTTP status (200 OK by default, or else whatever it was last
+    changed to with `setStatus`), and specifying `no-store` behavior for
+    caching.
+
+    Next, there may be a `Set-Cookie` header sent to the HTTP client,
+    depending on the current cookie state.  See `cookieDefault` for the
+    default behavior, and `cookieLogin` and `cookieCancel` for the other
+    behaviors.
+
+    The CGI response head is then finished and the HTML code is sent.
+    Finally, the script exits without returning to caller.
 
 # AUTHOR
 
