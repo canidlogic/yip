@@ -9,7 +9,6 @@ use MIME::Base64;
 # Non-core dependencies
 use Crypt::Bcrypt qw(bcrypt bcrypt_check);
 use Crypt::Random qw(makerandom_octet);
-use HTML::Template;
 
 # Yip modules
 use Yip::DB;
@@ -67,14 +66,11 @@ message is shown and the logout action is not performed.
 
 # GET form template.
 #
-# This template uses the following template variables:
+# This template uses the standard template variables defined by
+# Yip::Admin, as well as the following custom variables:
 #
 #   hasauth : 1 if client authorized and we should show link to control
 #   panel, 0 if client not authorized
-#
-#   homelink : path to the administrator control panel
-#
-#   pageself : path to this script itself
 #
 #   haspass : 1 if there is a current administrator password, 0 if we
 #   are in password reset state
@@ -92,11 +88,11 @@ my $get_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
 <TMPL_IF NAME=hasauth>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=homelink>">&raquo; Back &laquo;</a></p>
+      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a></p>
     </div>
 </TMPL_IF>
     <form
-        action="<TMPL_VAR NAME=pageself>"
+        action="<TMPL_VAR NAME=_pathreset>"
         method="post"
         enctype="application/x-www-form-urlencoded">
 <TMPL_IF NAME=haspass>
@@ -125,14 +121,11 @@ my $get_template = Yip::Admin->format_html('Password reset', q{
 
 # POST error result template.
 #
-# This template uses the following template variables:
+# This template uses the standard template variables defined by
+# Yip::Admin, as well as the following custom variables:
 #
 #   hasauth : 1 if client authorized and we should show link to control
 #   panel, 0 if client not authorized
-#
-#   homelink : path to the administrator control panel
-#
-#   pageself : path to this script itself
 #
 #   errmsg : the error message to report
 #
@@ -140,35 +133,34 @@ my $err_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
 <TMPL_IF NAME=hasauth>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=homelink>">&raquo; Home &laquo;</a></p>
+      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a></p>
     </div>
 </TMPL_IF>
     <p>
       Password reset failed.
       <TMPL_VAR NAME=errmsg ESCAPE=HTML>!
     </p>
-    <p><a href="<TMPL_VAR NAME=pageself>">Try again</a></p>
+    <p><a href="<TMPL_VAR NAME=_pathreset>">Try again</a></p>
   </body>
 </html>
 });
 
 # POST success result template.
 #
-# This template uses the following template variables:
-#
-#   login : path to the login script
+# This template uses the standard template variables defined by
+# Yip::Admin.
 #
 my $done_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
     <p>Password has been reset.</p>
-    <p><a href="<TMPL_VAR NAME=login>">Log in</a></p>
+    <p><a href="<TMPL_VAR NAME=_pathlogin>">Log in</a></p>
 });
 
 # ===============
 # Local functions
 # ===============
 
-# send_error(yad, errmsg)
+# send_error(yap, errmsg)
 #
 # Send the custom error template back to the client, indicating that the
 # password reset failed.  The provided error message will be included in
@@ -181,56 +173,29 @@ sub send_error {
   ($#_ == 1) or die "Wrong parameter count, stopped";
   
   # Get parameters and check
-  my $yad = shift;
-  (ref($yad) and $yad->isa('Yip::Admin')) or
+  my $yap = shift;
+  (ref($yap) and $yap->isa('Yip::Admin')) or
     die "Wrong parameter type, stopped";
   
   my $emsg = shift;
   (not ref($emsg)) or die "Wrong parameter type, stopped";
   $emsg = "$emsg";
   
-  # Fill in template state
-  my %tvar;
-  
-  if ($yad->hasCookie) {
-    $tvar{'hasauth'} = 1;
+  # Fill in custom parameters
+  if ($yap->hasCookie) {
+    $yap->customParam('hasauth', 1);
   } else {
-    $tvar{'hasauth'} = 0;
+    $yap->customParam('hasauth', 0);
   }
   
-  $tvar{'homelink'} = $yad->getVar('pathadmin');
-  $tvar{'pageself'} = $yad->getVar('pathreset');
+  $yap->customParam('errmsg', $emsg);
   
-  $tvar{'errmsg'} = $emsg;
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$err_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write main response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Status: 403 Forbidden\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # If user is authorized, refresh their cookie
-  if ($yad->hasCookie) {
-    $yad->sendCookie;
-  }
-  
-  # Finish headers, print generated template, and exit script
-  print "\r\n$tcode";
-  exit;
+  # Set status and send error
+  $yap->setStatus(403, 'Forbidden');
+  $yap->sendTemplate($err_template);
 }
 
-# send_done(yad)
+# send_done(yap)
 #
 # Send the success template back to the client, indicating that the
 # password reset succeded.  This will also clear the client's
@@ -243,37 +208,13 @@ sub send_done {
   ($#_ == 0) or die "Wrong parameter count, stopped";
   
   # Get parameter and check
-  my $yad = shift;
-  (ref($yad) and $yad->isa('Yip::Admin')) or
+  my $yap = shift;
+  (ref($yap) and $yap->isa('Yip::Admin')) or
     die "Wrong parameter type, stopped";
   
-  # Fill in template state
-  my %tvar;
-  
-  $tvar{'login'} = $yad->getVar('pathlogin');
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$done_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write main response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Cancel the user's cookie
-  $yad->cancelCookie;
-  
-  # Finish headers, print generated template, and exit
-  print "\r\n$tcode";
-  exit;
+  # Cancel the user's cookie and send done page
+  $yap->cookieCancel;
+  $yap->sendTemplate($done_template);
 }
 
 # ==============
@@ -290,49 +231,23 @@ if ($request_method eq 'GET') { # ======================================
   # GET method so start by connecting to database and loading admin
   # utilities
   my $dbc = Yip::DB->connect($config_dbpath, 0);
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
-  # Fill in template state
-  my %tvar;
-  
-  if ($yad->hasCookie) {
-    $tvar{'hasauth'} = 1;
+  # Fill in custom parameters
+  if ($yap->hasCookie) {
+    $yap->customParam('hasauth', 1);
   } else {
-    $tvar{'hasauth'} = 0;
+    $yap->customParam('hasauth', 0);
   }
   
-  if ($yad->getVar('authpswd') eq '?') {
-    $tvar{'haspass'} = 0;
+  if ($yap->getVar('authpswd') eq '?') {
+    $yap->customParam('haspass', 0);
   } else {
-    $tvar{'haspass'} = 1;
+    $yap->customParam('haspass', 1);
   }
   
-  $tvar{'homelink'} = $yad->getVar('pathadmin');
-  $tvar{'pageself'} = $yad->getVar('pathreset');
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$get_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write main response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # If user is authorized, refresh their cookie
-  if ($yad->hasCookie) {
-    $yad->sendCookie;
-  }
-  
-  # Finish headers and print generated template
-  print "\r\n$tcode";
+  # Send the GET form template
+  $yap->sendTemplate($get_template);
   
 } elsif ($request_method eq 'POST') { # ================================
   # POST method so start by connecting to database and loading admin
@@ -341,7 +256,7 @@ if ($request_method eq 'GET') { # ======================================
   # transaction
   my $dbc = Yip::DB->connect($config_dbpath, 0);
   my $dbh = $dbc->beginWork('w');
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
   # Read all the POSTed form variables
   my $vars = Yip::Admin->parse_form(Yip::Admin->read_client);
@@ -352,19 +267,19 @@ if ($request_method eq 'GET') { # ======================================
   
   # If the password is not in reset state, then "oldpass" must have been
   # provided and it must match the password hash
-  if ($yad->getVar('authpswd') ne '?') {
+  if ($yap->getVar('authpswd') ne '?') {
     # Make sure we were given the old password
     (exists $vars->{'oldpass'}) or
-      send_error($yad, 'Old password does not match');
+      send_error($yap, 'Old password does not match');
     
     # Make sure it matches after encoding into UTF-8 byte string and
     # checking that it isn't longer than 72 bytes (a bcrypt limit)
     my $old_pass = encode(
                     'UTF-8', $vars->{'oldpass'}, Encode::FB_CROAK);
     (length($old_pass) <= 72) or
-      send_error($yad, 'Old password does not match');
-    (bcrypt_check($old_pass, $yad->getVar('authpswd'))) or
-      send_error($yad, 'Old password does not match');
+      send_error($yap, 'Old password does not match');
+    (bcrypt_check($old_pass, $yap->getVar('authpswd'))) or
+      send_error($yap, 'Old password does not match');
   }
   
   # If we got here, then we are authorized for the operation, either
@@ -372,20 +287,20 @@ if ($request_method eq 'GET') { # ======================================
   # Yip CMS database is in password reset state; next is to check that
   # newpass and checkpass are equal
   ($vars->{'newpass'} eq $vars->{'checkpass'}) or
-    send_error($yad, 'New password was not the same the second time');
+    send_error($yap, 'New password was not the same the second time');
   
   # Encode the password as a binary string in UTF-8 and make sure the
   # result is at most 72 bytes (a bcrypt limit)
   my $new_pass = encode('UTF-8', $vars->{'newpass'}, Encode::FB_CROAK);
   (length($new_pass) <= 72) or
-    send_error($yad,
+    send_error($yap,
               'Password may be at most 72 bytes when UTF-8 encoded');
   
   # Get 16 random bytes for use in the salt
   my $salt = makerandom_octet(Length => 16, Strength => 0);
   
   # Get a password hash for the new password
-  my $phash = bcrypt($new_pass, '2b', $yad->getVar('authcost'), $salt);
+  my $phash = bcrypt($new_pass, '2b', $yap->getVar('authcost'), $salt);
   
   # Update the password hash
   $dbh->do('UPDATE cvars SET cvarsval=? WHERE cvarskey=?',
@@ -405,7 +320,7 @@ if ($request_method eq 'GET') { # ======================================
   $dbc->finishWork;
   
   # Send the success response to the user and cancel their cookie
-  send_done($yad);
+  send_done($yap);
   
 } else { # =============================================================
   die "Unexpected";
