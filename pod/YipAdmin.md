@@ -31,6 +31,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
     # Send a Set-Cookie header to client that cancels cookie
     $yad->cancelCookie;
     
+    # Generate HTML or HTML template in standard format
+    my $html = Yip::Admin->format_html($title, $body_code);
+    
     # Send a standard error response for an invalid request method
     Yip::Admin->invalid_method;
     
@@ -182,6 +185,36 @@ though!
     standard output, followed by a CR+LF break.
 
 # STATIC CLASS METHODS
+
+- **format\_html(title, body\_code)**
+
+    Generate HTML or an HTML template according to the "house style" for
+    administration scripts.  `title` is the page title to write into the
+    head section _which should be escaped properly_ but _not_ include the
+    surrounding title element start and end blocks.  `body_code` is what
+    should be pasted between the body start and end element.
+
+    This function will generate all the necessary boilerplate code and add a
+    stylesheet.  The following special CSS IDs are classes are defined in
+    the stylesheet:
+
+        #homelink
+        The DIV containing link back to control panel
+        
+        .ctlbox
+        DIVs containing two sub-DIVs, one for label and second for control
+        
+        .btnbox
+        DIV for submit button
+        
+        .pwbox
+        CSS class for password input boxes
+        
+        .btn
+        CSS class for submit buttons
+
+    This function will also normalize all line breaks to CR+LF before
+    returning the result.
 
 - **invalid\_method()**
 
