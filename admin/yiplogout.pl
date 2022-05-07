@@ -51,37 +51,23 @@ client's key will be canceled.
 #
 # The form action POSTs back to this script.
 #
-my $get_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Logout</title>
-  </head>
-  <body>
+my $get_template = Yip::Admin->format_html('Logout', q{
     <h1>Logout</h1>
     <form
         action="<TMPL_VAR NAME=pageself>"
         method="post"
         enctype="application/x-www-form-urlencoded">
       <input type="hidden" name="logout" value="1">
-      <p><input type="submit" value="Log out"></p>
+      <p><input type="submit" value="Log out" class="btn"></p>
     </form>
-  </body>
-</html>
-};
+});
 
 # POST success page (NOT a template!).
 #
-my $done_page = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Logout</title>
-  </head>
-  <body>
+my $done_page = Yip::Admin->format_html('Logout', q{
     <h1>Logout</h1>
     <p>You are now logged out.</p>
-  </body>
-</html>
-};
+});
 
 # ==============
 # CGI entrypoint
