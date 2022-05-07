@@ -26,6 +26,8 @@ Yip::Admin - Common utilities for administration CGI scripts.
   my $example = $vars->{'example_var'};
   
   # Send standard responses (these calls do not return)
+  Yip::Admin->insecure_protocol;
+  Yip::Admin->not_authorized;
   Yip::Admin->invalid_method;
   Yip::Admin->bad_request;
   
@@ -311,7 +313,7 @@ sub http_method {
     $request_method = "POST";
   
   } else {
-    invalid_method();
+    Yip::Admin->invalid_method();
   }
   
   # Return the normalized method
@@ -332,10 +334,11 @@ sub read_client {
   ($#_ <= 0) or die "Wrong number of arguments, stopped";
   
   # CONTENT_LENGTH must be defined
-  (exists $ENV{'CONTENT_LENGTH'}) or bad_request();
+  (exists $ENV{'CONTENT_LENGTH'}) or Yip::Admin->bad_request();
   
   # Parse content length
-  ($ENV{'CONTENT_LENGTH'} =~ /\A0*[0-9]{1,9}\z/) or bad_request();
+  ($ENV{'CONTENT_LENGTH'} =~ /\A0*[0-9]{1,9}\z/) or
+    Yip::Admin->bad_request();
   my $clen = int($ENV{'CONTENT_LENGTH'});
   
   # Set raw input
@@ -344,7 +347,8 @@ sub read_client {
   # Read the data
   my $data = '';
   if ($clen > 0) {
-    (sysread(STDIN, $data, $clen) == $clen) or bad_request();
+    (sysread(STDIN, $data, $clen) == $clen) or
+      Yip::Admin->bad_request();
   }
   
   # Return the data
@@ -374,7 +378,7 @@ sub parse_form {
   
   # Make sure string is 7-bit US-ASCII (Unicode should be encoded in
   # percent escapes)
-  ($str =~ /\A[ \t\r\n\x{20}-\x{7e}]*\z/) or bad_request();
+  ($str =~ /\A[ \t\r\n\x{20}-\x{7e}]*\z/) or Yip::Admin->bad_request();
   
   # Drop all literal whitespace (actual whitespace is encoded)
   $str =~ s/[ \t\r\n]+//g;
@@ -391,7 +395,7 @@ sub parse_form {
   # Add all definitions
   for my $ds (@dfs) {
     # Parse this definition string into encoded name and encoded value
-    ($ds =~ /\A([^=]+)=(.*)\z/) or bad_request();
+    ($ds =~ /\A([^=]+)=(.*)\z/) or Yip::Admin->bad_request();
     my $dname = $1;
     my $dval  = $2;
     
@@ -434,7 +438,7 @@ sub parse_form {
       
       # Make sure there are no remaining percents (encoded percents were
       # temporarily set to 0x100 recall)
-      (not ($v =~ /%/)) or bad_request();
+      (not ($v =~ /%/)) or Yip::Admin->bad_request();
       
       # Now replace 0x100 with percent signs to get the decoded binary
       # string
@@ -445,7 +449,7 @@ sub parse_form {
         $v = decode('UTF-8', $v, Encode::FB_CROAK);
       };
       if ($@) {
-        bad_request();
+        Yip::Admin->bad_request();
       }
       
       # Update with the decoded value
@@ -459,7 +463,7 @@ sub parse_form {
     }
     
     # Make sure we don't already have this variable
-    (not (exists $result{$dname})) or bad_request();
+    (not (exists $result{$dname})) or Yip::Admin->bad_request();
     
     # Add variable to hash result
     $result{$dname} = $dval;
@@ -535,6 +539,32 @@ sub format_html {
   return $code;
 }
 
+=item B<insecure_protocol()>
+
+Send an HTTP 403 Forbidden with message indicating that HTTPS is
+required back to the client and exit without returning.
+
+=cut
+
+sub insecure_protocol {
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
+  print "$err_insecure";
+  exit;
+}
+
+=item B<not_authorized()>
+
+Send an HTTP 403 Forbidden with message indicating client must log in
+back to the client and exit without returning.
+
+=cut
+
+sub not_authorized {
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
+  print "$err_unauth";
+  exit;
+}
+
 =item B<invalid_method()>
 
 Send an HTTP 405 Method Not Allowed back to the client and exit without
@@ -543,7 +573,7 @@ returning.
 =cut
 
 sub invalid_method {
-  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
   print "$err_method";
   exit;
 }
@@ -556,7 +586,7 @@ returning.
 =cut
 
 sub bad_request {
-  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
   print "$err_request";
   exit;
 }
@@ -654,8 +684,7 @@ sub load {
   
   # Make sure we are in HTTPS
   unless (exists $ENV{'HTTPS'}) {
-    print "$err_insecure";
-    exit;
+    Yip::Admin->insecure_protocol;
   }
   
   # Define the new object
@@ -890,8 +919,7 @@ sub checkCookie {
   
   # Print error if client not authorized
   unless ($self->{'_verify'}) {
-    print "$err_unauth";
-    exit;
+    Yip::Admin->not_authorized;
   }
 }
 
