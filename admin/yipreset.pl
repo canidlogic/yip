@@ -88,45 +88,40 @@ message is shown and the logout action is not performed.
 #
 #   checkpass : should be an exact copy of the new password
 #
-my $get_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Password reset</title>
-  </head>
-  <body>
+my $get_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
 <TMPL_IF NAME=hasauth>
-    <p><a href="<TMPL_VAR NAME=homelink>">Home</a></p>
+    <div id="homelink">
+      <a href="<TMPL_VAR NAME=homelink>">&raquo; Back &laquo;</a></p>
+    </div>
 </TMPL_IF>
     <form
         action="<TMPL_VAR NAME=pageself>"
         method="post"
         enctype="application/x-www-form-urlencoded">
-      <table>
 <TMPL_IF NAME=haspass>
-        <tr>
-          <td>Current password:</td>
-          <td><input type="password" name="oldpass"></td>
-        </tr>
-        <tr><td colspan="2">&nbsp;</td></tr>
+      <div class="ctlbox">
+        <div>Current password:</div>
+        <div><input type="password" name="oldpass" class="pwbox"></div>
+      </div>
+      <div>&nbsp;</div>
 </TMPL_IF>
-        <tr>
-          <td>New password:</td>
-          <td><input type="password" name="newpass"></td>
-        </tr>
-        <tr>
-          <td>Retype password:</td>
-          <td><input type="password" name="checkpass"></td>
-        </tr>
-        <tr><td colspan="2">&nbsp;</td></tr>
-        <tr>
-          <td colspan="2"><input type="submit" value="Submit"></td>
-        </tr>
-      </table>
+      <div class="ctlbox">
+        <div>New password:</div>
+        <div><input type="password" name="newpass" class="pwbox"></div>
+      </div>
+      <div class="ctlbox">
+        <div>Retype password:</div>
+        <div>
+          <input type="password" name="checkpass" class="pwbox">
+        </div>
+      </div>
+      <div>&nbsp;</div>
+      <div class="btnbox">
+        <input type="submit" value="Submit" class="btn">
+      </div>
     </form>
-  </body>
-</html>
-};
+});
 
 # POST error result template.
 #
@@ -141,22 +136,21 @@ my $get_template = q{<!DOCTYPE html>
 #
 #   errmsg : the error message to report
 #
-my $err_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Password reset</title>
-  </head>
-  <body>
+my $err_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
-    <p>Password reset failed.  <a href="<TMPL_VAR NAME=pageself>">Try
-    again</a></p>
-    <p>Reason: <TMPL_VAR NAME=errmsg ESCAPE=HTML></p>
 <TMPL_IF NAME=hasauth>
-    <p><a href="<TMPL_VAR NAME=homelink>">Home</a></p>
+    <div id="homelink">
+      <a href="<TMPL_VAR NAME=homelink>">&raquo; Home &laquo;</a></p>
+    </div>
 </TMPL_IF>
+    <p>
+      Password reset failed.
+      <TMPL_VAR NAME=errmsg ESCAPE=HTML>!
+    </p>
+    <p><a href="<TMPL_VAR NAME=pageself>">Try again</a></p>
   </body>
 </html>
-};
+});
 
 # POST success result template.
 #
@@ -164,18 +158,11 @@ my $err_template = q{<!DOCTYPE html>
 #
 #   login : path to the login script
 #
-my $done_template = q{<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Password reset</title>
-  </head>
-  <body>
+my $done_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
     <p>Password has been reset.</p>
     <p><a href="<TMPL_VAR NAME=login>">Log in</a></p>
-  </body>
-</html>
-};
+});
 
 # ===============
 # Local functions
