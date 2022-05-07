@@ -2,10 +2,11 @@ package Yip::Admin;
 use strict;
 
 # Core dependencies
-use Encode qw(decode);
+use Encode qw(decode encode);
 
 # Non-core dependencies
 use Digest::HMAC_MD5 qw(hmac_md5_hex);
+use HTML::Template;
 
 =head1 NAME
 
@@ -15,7 +16,7 @@ Yip::Admin - Common utilities for administration CGI scripts.
 
   use Yip::Admin;
   
-  # Check we are running as CGI and get 'GET' or 'POST' method
+  # Check we are running as HTTPS CGI and get 'GET' or 'POST' method
   my $method = Yip::Admin->http_method;
   
   # Read data sent from HTTP client as raw bytes
@@ -25,16 +26,17 @@ Yip::Admin - Common utilities for administration CGI scripts.
   my $vars = Yip::Admin->parse_form($octets);
   my $example = $vars->{'example_var'};
   
+  # Generate HTML or HTML template in "house" CGI style
+  my $html = Yip::Admin->format_html($title, $body_code);
+  
   # Send standard responses (these calls do not return)
   Yip::Admin->insecure_protocol;
   Yip::Admin->not_authorized;
   Yip::Admin->invalid_method;
   Yip::Admin->bad_request;
   
-  # Generate HTML or HTML template in "house" CGI style
-  my $html = Yip::Admin->format_html($title, $body_code);
-  
   # Instance methods require database connection to construct instance
+  use Yip::Admin;
   use Yip::DB;
   use YipConfig;
   
@@ -59,11 +61,22 @@ Yip::Admin - Common utilities for administration CGI scripts.
   # Get any loaded configuration value
   my $epoch = $yap->getVar('epoch');
   
-  # Send a Set-Cookie header to client with new verification cookie
-  $yap->sendCookie;
+  # Change the cookie behavior for send functions
+  $yap->cookieLogin;
+  $yap->cookieCancel;
+  $yap->cookieDefault;
   
-  # Send a Set-Cookie header to client that cancels cookie
-  $yap->cancelCookie;
+  # Add custom template parameter
+  $yap->customParam('example', 'value');
+  
+  # Set a special status code for response
+  $yap->setStatus(403, 'Forbidden');
+  
+  # Respond with a template (does not return)
+  $yap->sendTemplate($tcode);
+  
+  # Respond with non-template HTML code (does not return)
+  $yap->sendHTML($html);
 
 =head1 DESCRIPTION
 
@@ -82,8 +95,8 @@ using the instance functions.
 
 Administrator CGI scripts should always start out with a call to the
 C<http_method> instance method, which does a quick check that the script
-was invoked as a CGI script and also determines whether this is a GET or
-POST request.
+was invoked as a CGI script over HTTPS and also determines whether this
+is a GET or POST request.
 
 For most administrator CGI scripts, the next operation will be to get a
 Yip CMS database connection, use that to construct a C<Yip::Admin>
@@ -92,15 +105,115 @@ make sure that the client is authorized.  However, the login and
 password reset scripts do not follow this pattern, since they must also
 be able to work with clients who are not authorized yet.
 
-For most administrator CGI scripts, when sending a response back to the
-client, the C<sendCookie> function should be called immediately after
-writing the other CGI response headers but before writing the blank line
-that ends the CGI response head.  This will refresh the client's
-authorization cookie.  However, the login, logout, and password reset
-scripts do not follow this pattern.
+Administrator CGI scripts finish in three different ways:
 
-B<Note:> The constructor for C<Yip::Admin> will put standard input and
-standard output into binary mode.
+=over 4
+
+=item *
+Fatal error
+
+=item *
+Predefined response
+
+=item *
+Send functions
+
+=back
+
+The following subsections describe these three possibilities.
+
+=head3 Fatal error handling
+
+If a fatal error occurs with the Perl C<die> or the like, then the
+response is up to the server because the CGI script will not generate a
+normal CGI response in that case.  The usual server behavior is to send
+a generic 500 Internal Server Error page back to the client.
+
+If you are debugging and want more information, add the following near
+the start of the CGI script to get more details on the error page:
+
+  use CGI::Carp qw(fatalsToBrowser);
+
+In production, this should I<not> be included, for security reasons.
+
+Fatal errors should only occur for problems originating within the
+server that have nothing to do with the client.
+
+=head3 Predefined responses
+
+Predefined responses are class methods provided by this module.  They
+include the following:
+
+=over 4
+
+=item C<insecure_protocol>
+
+Used when the client did not connect over secured HTTPS.
+
+=item C<not_authorized>
+
+Used when the client is not logged in with a valid cookie.
+
+=item C<invalid_method>
+
+Used when the client requested something other than HEAD, GET, or POST.
+
+=item C<bad_request>
+
+Used when the client's request is malformed.
+
+=back
+
+All of these predefined responses are used internally by this module,
+but they are provided publicly in case clients want to use them.  (The
+C<bad_request> is likely to be useful.)
+
+Since these are class methods, you do not need a database connection or
+a C<Yip::Admin> object instance to use them.  This makes them good for
+responding immediately to low-level errors.
+
+=head3 Send functions
+
+The best way to end an administrator script is by calling either the
+C<sendTemplate> or C<sendHTML> function.  (Internally, the function
+C<sendTemplate> is just a wrapper around C<sendHTML>.)  It is
+recommended that you use the C<format_html> function to generate HTML or
+HTML template code in the "house style" for administrator CGI scripts.
+
+These send functions are instance methods, so you must have an instance
+of C<Yip::Admin> in order to use them.  The only difference between the
+two is that C<sendTemplate> will perform template processing.
+
+By default, the template processor will make all of the standard path
+variables defined in the C<cvars> table available as template variables,
+except that each name is prefixed with an underscore.  If you need
+additional template variables, you can define them with the
+C<customParam> function, provided that none of the custom names begin
+with an underscore.
+
+By default, the send functions will use HTTP status 200 'OK'.  If you
+want to set a different status, use the C<setStatus> function.
+
+By default, the send functions will give the HTTP a refreshed
+authorization cookie only if the client already has a valid
+authorization cookie.  If the client has no valid authorization cookie,
+the default behavior is to not send any cookie information back to the
+client.  You can explicitly set this default behavior with
+C<cookieDefault> if you wish.
+
+If you want to send a refershed authorization cookie to the client in
+all cases, even when the client doesn't already have a cookie, then you
+should call C<cookieLogin> to always send a cookie.  This is only
+appropriate for the login script when the client has authorized
+themselves by providing a matching password.
+
+If you want to cancel any authorization cookie the client may have, then
+you should call C<cookieCancel>.  This will cause a cookie header to be
+sent to the client that overwrites any existing authorization cookie
+with an invalid value and immediately expires it.  This is appropriate
+for the logout script and the password reset script after the password
+has been changed.  But note that this does I<not> update the secret key
+in the database, which should be done in a proper logout.
 
 =head2 Configuration variable access
 
@@ -121,16 +234,6 @@ If the POSTed client data is in the usual form data format of
 C<application/x-www-form-urlencoded> then you can use the class method
 C<parse_form> to decode it into a hashref, which includes Unicode
 support.
-
-=head2 Predefined responses
-
-Class methods are provided for certain predefined responses.  Some of
-these predefined responses are used internally, though they are also
-made public in case the client might need them.
-
-Predefined responses will print a complete CGI response to standard
-output and then exit the script, never returning to caller.  All of the
-predefined responses are for brief error messages.
 
 =head2 HTML formatting
 
@@ -224,6 +327,11 @@ form {
   border: medium outset;
   padding: 0.5em;
   font-size: larger;
+  cursor: pointer;
+}
+
+.btn:active {
+  border: medium inset;
 }
 
     </style>
@@ -291,13 +399,15 @@ my $err_request =
 Check that there is a CGI environment variable REQUEST_METHOD and fatal
 error if not.  Then, get the REQUEST_METHOD and normalize it to 'GET' or
 'POST'.  If it can't be normalized to one of those two, invoke
-invalid_method.  Return the normalized method.
+invalid_method.  Next, check that the CGI environment variable HTTPS is
+defined, invoking insecure_protocol if it is not.  Finally, return the
+normalized method, which is either 'GET' or 'HEAD'.
 
 =cut
 
 sub http_method {
   # Check parameter count
-  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
   
   # REQUEST_METHOD must be defined
   (exists $ENV{'REQUEST_METHOD'}) or
@@ -316,42 +426,63 @@ sub http_method {
     Yip::Admin->invalid_method();
   }
   
+  # Make sure we are in HTTPS
+  (exists $ENV{'HTTPS'}) or Yip::Admin->insecure_protocol;
+  
   # Return the normalized method
   return $request_method;
 }
 
 =item B<read_client()>
 
-Read data sent by an HTTP client.  This checks for CONTENT_LENGTH
-environment variable, then reads exactly that from standard input,
-returning the raw bytes in a binary string.  If there are any problems,
-sends 400 Bad Request back to client and exits without returning.
+Read data sent by an HTTP client and return it as a raw binary string.
+
+First, this checks that the CGI environment variable REQUEST_METHOD is
+defined as POST, causing a fatal error if it is not.  Next, this checks
+for CONTENT_LENGTH environment variable, then reads exactly that from
+standard input, returning the raw bytes in a binary string.  If
+CONTENT_LENGTH is zero or empty or not defined, then an empty string is
+returned instead.
+
+Fatal errors occur if there are any problems with the CONTENT_LENGTH
+variable or with reading the data.
+
+B<Note:> This function might set standard input into raw binary mode.
 
 =cut
 
 sub read_client {
   # Check parameter count
-  ($#_ <= 0) or die "Wrong number of arguments, stopped";
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
   
-  # CONTENT_LENGTH must be defined
-  (exists $ENV{'CONTENT_LENGTH'}) or Yip::Admin->bad_request();
+  # Make sure we are in POST mode
+  (exists $ENV{'REQUEST_METHOD'}) or
+    die "Must use in CGI script, stopped";
+  ($ENV{'REQUEST_METHOD'} =~ /\APOST\z/i) or
+    die "Must use with POST method, stopped";
   
-  # Parse content length
-  ($ENV{'CONTENT_LENGTH'} =~ /\A0*[0-9]{1,9}\z/) or
-    Yip::Admin->bad_request();
-  my $clen = int($ENV{'CONTENT_LENGTH'});
-  
-  # Set raw input
-  binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
-  
-  # Read the data
+  # Start with an empty data result string
   my $data = '';
-  if ($clen > 0) {
+  
+  # Only proceed if CONTENT_LENGTH is defined and not empty and not
+  # zero
+  if ((defined $ENV{'CONTENT_LENGTH'}) and
+        (not ($ENV{'CONTENT_LENGTH'} =~ /\A0*\z/))) {
+    
+    # Parse (non-zero) content length
+    ($ENV{'CONTENT_LENGTH'} =~ /\A0*[1-9][0-9]{0,8}\z/) or
+      die "Invalid content length, stopped";
+    my $clen = int($ENV{'CONTENT_LENGTH'});
+    
+    # Set raw input
+    binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
+    
+    # Read the data
     (sysread(STDIN, $data, $clen) == $clen) or
-      Yip::Admin->bad_request();
+      die "Failed to read POSTed data, stopped";
   }
   
-  # Return the data
+  # Return the data or empty string
   return $data;
 }
 
@@ -360,7 +491,11 @@ sub read_client {
 Given a string in application/x-www-form-urlencoded format, parse it
 into a hash reference containing the decoded key/value map with possible
 Unicode in the strings.  If there are any problems, sends 400 Bad
-Request back to client and exists without returning.
+Request back to client and exits without returning.
+
+This function will also check that there is a CONTENT_TYPE environment
+variable defined to C<application/x-www-form-urlencoded>.  If not, 400
+Bad REquest is sent back to client.
 
 =cut
 
@@ -375,6 +510,12 @@ sub parse_form {
   my $str = shift;
   (not ref($str)) or die "Wrong parameter type, stopped";
   $str = "$str";
+  
+  # Check that CONTENT_TYPE is correctly defined
+  (exists $ENV{'CONTENT_TYPE'}) or Yip::Admin->bad_request();
+  ($ENV{'CONTENT_TYPE'} =~
+    /\Aapplication\/x-www-form-urlencoded(?:;.*)?\z/i) or
+    Yip::Admin->bad_request();
   
   # Make sure string is 7-bit US-ASCII (Unicode should be encoded in
   # percent escapes)
@@ -510,7 +651,7 @@ sub format_html {
   # Check parameter count
   ($#_ == 2) or die "Wrong number of arguments, stopped";
   
-  # Drop the self argument
+  # Drop the class argument
   shift;
   
   # Get parameters and check
@@ -548,7 +689,8 @@ required back to the client and exit without returning.
 
 sub insecure_protocol {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
-  print "$err_insecure";
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
+  print encode('UTF-8', $err_insecure, Encode::FB_CROAK);
   exit;
 }
 
@@ -561,7 +703,8 @@ back to the client and exit without returning.
 
 sub not_authorized {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
-  print "$err_unauth";
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
+  print encode('UTF-8', $err_unauth, Encode::FB_CROAK);
   exit;
 }
 
@@ -574,7 +717,8 @@ returning.
 
 sub invalid_method {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
-  print "$err_method";
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
+  print encode('UTF-8', $err_method, Encode::FB_CROAK);
   exit;
 }
 
@@ -587,7 +731,8 @@ returning.
 
 sub bad_request {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
-  print "$err_request";
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
+  print encode('UTF-8', $err_request, Encode::FB_CROAK);
   exit;
 }
 
@@ -606,14 +751,9 @@ read-only work block.  If you want all database activity to be in a
 single transaction, including this configuration load, you should begin
 a work block on the C<Yip::DB> object before calling this constructor.
 
-This constructor will also verify that the CGI environment variable
-C<HTTPS> is defined, indicating that the connection is secured over
-HTTPS.  If this is not the case, this constructor will send HTTP 403
-Forbidden to the client with a message that they need to connect over
-HTTPS and then the function will exit without returning to the caller.
-
-Furthermore, the constructor will set both standard input and standard
-output into raw binary mode.
+The database connection is only used during this constructor.  After the
+return from the constructor, no further reference is made to the
+database.
 
 When loading configuration variables into memory, this constructor will
 make sure that all of these recognized variables are defined:
@@ -678,21 +818,35 @@ sub load {
   (ref($dbc) and $dbc->isa('Yip::DB')) or
     die "Wrong parameter type, stopped";
   
-  # Set raw input and output
-  binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
-  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
-  
-  # Make sure we are in HTTPS
-  unless (exists $ENV{'HTTPS'}) {
-    Yip::Admin->insecure_protocol;
-  }
-  
   # Define the new object
   my $self = { };
   bless($self, $class);
   
   # The '_cvar' property will store the configuration variables
   $self->{'_cvar'} = { };
+  
+  # The '_verify' property will be set only if a valid verification
+  # cookie is detected
+  $self->{'_verify'} = 0;
+  
+  # The '_cookie' property stores cookie behavior for the send
+  # functions; the default value of zero means refresh client cookie if
+  # the client already has a valid cookie; a value of one means always
+  # send client fresh cookie even if they don't have one; a value of -1
+  # means cancel the client's cookie
+  $self->{'_cookie'} = 0;
+  
+  # The '_tvar' property is a reference to a hash that stores template
+  # variables; it will be initialized with all the path variables, with
+  # an underscore prefixed to each of the path variable names; clients
+  # can later add their own custom parameters provided that those names
+  # don't begin with an underscore
+  $self->{'_tvar'} = { };
+  
+  # The '_status' property is a reference to an array of two values, the
+  # first of which is the integer HTTP status code and the second of
+  # which is the string description
+  $self->{'_status'} = [200, 'OK'];
   
   # Create a hash where all recognized configuration variables are
   # initially mapped to zero
@@ -807,8 +961,13 @@ sub load {
     ($ch{$pname}) or die "Variable '$pname' undefined, stopped";
   }
   
-  # Start with verify flag cleared
-  $self->{'_verify'} = 0;
+  # Add all the path variables to the template variable hash, with an
+  # underscore prefixed to their names
+  for my $pname (keys %ch) {
+    if ($pname =~ /\Apath/) {
+      $self->{'_tvar'}->{"_$pname"} = $self->{'_cvar'}->{$pname};
+    }
+  }
   
   # Proceed with cookie check if cookie environment variable
   if (exists $ENV{'HTTP_COOKIE'}) {
@@ -901,9 +1060,8 @@ sub hasCookie {
 =item B<checkCookie()>
 
 Make sure the HTTP client has a valid verification cookie.  If so, then
-this function returns without doing anything further.  If not, an error
-message is set to the HTTP client and this function will exit the script
-without returning.
+this function returns without doing anything further.  If not, the
+C<not_authorized> function is invoked.
 
 =cut
 
@@ -918,66 +1076,7 @@ sub checkCookie {
     die "Wrong parameter type, stopped";
   
   # Print error if client not authorized
-  unless ($self->{'_verify'}) {
-    Yip::Admin->not_authorized;
-  }
-}
-
-=item B<sendCookie()>
-
-Print a C<Set-Cookie> HTTP header that contains a fresh, valid
-authorization cookie.  The C<Set-Cookie> line is printed directly to
-standard output, followed by a CR+LF break.
-
-=cut
-
-sub sendCookie {
-  
-  # Check parameter count
-  ($#_ == 0) or die "Wrong number of parameters, stopped";
-  
-  # Get self
-  my $self = shift;
-  (ref($self) and $self->isa(__PACKAGE__)) or
-    die "Wrong parameter type, stopped";
-  
-  # Determine the cookie name
-  my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
-  
-  # Determine the cookie payload
-  my $auth_time = sprintf("%x", int(time / 60));
-  my $auth_hmac = hmac_md5_hex(
-                    $auth_time, $self->{'_cvar'}->{'authsecret'});
-  my $payload = "$auth_time|$auth_hmac";
-  
-  # Send the cookie header
-  print "Set-Cookie: $cookie_name=$payload; Secure; Path=/\r\n";
-}
-
-=item B<cancelCookie()>
-
-Print a C<Set-Cookie> HTTP header that overwrites any authorization
-cookie the client may have with an invalid value and then immediately
-expires the cookie.  The C<Set-Cookie> line is printed directly to
-standard output, followed by a CR+LF break.
-
-=cut
-
-sub cancelCookie {
-  
-  # Check parameter count
-  ($#_ == 0) or die "Wrong number of parameters, stopped";
-  
-  # Get self
-  my $self = shift;
-  (ref($self) and $self->isa(__PACKAGE__)) or
-    die "Wrong parameter type, stopped";
-  
-  # Determine the cookie name
-  my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
-  
-  # Send the cookie header
-  print "Set-Cookie: $cookie_name=0; Max-Age=0; Secure; Path=/\r\n";
+  ($self->{'_verify'}) or Yip::Admin->not_authorized;
 }
 
 =item B<getVar(key)>
@@ -1009,6 +1108,328 @@ sub getVar {
   
   # Return the cached key value
   return $self->{'_cvar'}->{$k};
+}
+
+=item B<cookieLogin()>
+
+Set the special I<login> behavior for cookies when using the send
+functions.  In this behavior, a fresh verification cookie is always sent
+to the client, even if they don't have a verification cookie.  This is
+only appropriate during the login process.
+
+This function does not actually send any cookie header, but rather just
+changes an internal setting that will be applied when one of the send
+functions is called.
+
+=cut
+
+sub cookieLogin {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Set state
+  $self->{'_cookie'} = 1;
+}
+
+=item B<cookieCancel()>
+
+Set the special I<cancel> behavior for cookies when using the send
+functions.  In this behavior, any existing client verification cookie
+will be overwritten with an invalid value and then immediately expired.
+This is only appropriate during the logout process.  Note that this
+function does I<not> change the secret key, which should also be done
+during the logout process.
+
+This function does not actually send any cookie header, but rather just
+changes an internal setting that will be applied when one of the send
+functions is called.
+
+=cut
+
+sub cookieCancel {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Set state
+  $self->{'_cookie'} = -1;
+}
+
+=item B<cookieDefault()>
+
+Set the default behavior for cookies when using the send functions.
+In this behavior, a fresh verification cookie is always sent to the
+client only if the client already had a valid verification cookie; else,
+no cookie header is sent to the client.  This is the default behavior
+that is always set during construction, but you might need to use this
+function is you changed the cookie behavior to one of the special
+settings but now want to change it back.
+
+This function does not actually send any cookie header, but rather just
+changes an internal setting that will be applied when one of the send
+functions is called.
+
+B<Note:>  If a logout simultaneously happens from another script, the
+default behavior is still to refresh the client cookie if they already
+had one.  This would appear to be a security flaw in that clients could
+get their cookies refreshed across a logout, which isn't supposed to be
+possible.  However, there is actually no flaw here.  All the cookie
+configuration values were cached during construction, and the refreshed
+cookie uses these cached values.  Since the cached values includes the
+secret key I<before> the logout happened, the "refreshed" cookie will
+not in fact be valid since the secret key has since changed.  This is
+the appropriate behavior.
+
+=cut
+
+sub cookieDefault {
+  
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  
+  # Get self
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  # Set state
+  $self->{'_cookie'} = 0;
+}
+
+=item B<customParam(name, value)>
+
+Add a custom template parameter that will be available to templates sent
+to the C<sendTemplate> function.
+
+By default, all of the path variables from the C<cvars> table will be
+available as template variables, with underscores prefixed to all of
+the variable names.  (So, for example, C<_pathlogin> is the template
+variable for the C<pathlogin> in the C<cvars> table.)
+
+If you need more than this in the templates, you can use this function
+to add additional variables.  All custom variables must not begin with
+an underscore, so custom variables are never able to overwrite the
+standard path variables.
+
+If you provide a variable name that hasn't been set yet, a new custom
+variable will be defined.  If you provide a variable name that is 
+already defined, it will be overwritten with the name value.
+
+The name must be a string of one to 31 ASCII lowercase letters, digits,
+and underscores, where the first character is not an underscore.
+
+The value must be a string, which can hold any Unicode codepoints,
+excluding surrogates.
+
+=cut
+
+sub customParam {
+  
+  # Check parameter count
+  ($#_ == 2) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameters
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $tname = shift;
+  my $tstr  = shift;
+  
+  ((not ref($tname)) and (not ref($tstr))) or
+    die "Wrong parameter type, stopped";
+  $tname = "$tname";
+  $tstr  = "$tstr";
+  
+  ($tname =~ /\A[a-z0-9][a-z0-9_]*\z/) or
+    die "Invalid parameter name, stopped";
+  ($tstr =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or
+    die "Invalid parameter value, stopped";
+  
+  # Set parameter
+  $self->{'_tvar'}->{$tname} = $tstr;
+}
+
+=item B<setStatus(numeric, string)>
+
+Set the HTTP status code that will be returned.  By default this is
+200 'OK'.
+
+Setting the status here will not actually send the status code.
+Instead, it will update internal state.  The status code will actually
+be sent when one of the send functions is invoked.
+
+The C<numeric> parameter must be an integer in range 100-599.  The
+C<string> parameter must be a string of US-ASCII printing characters in
+range [U+0020, U+007E] that names the status code.
+
+=cut
+
+sub setStatus {
+  
+  # Check parameter count
+  ($#_ == 2) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameters
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $snum = shift;
+  my $sstr = shift;
+  
+  ((not ref($snum)) and (not ref($sstr))) or
+    die "Wrong parameter type, stopped";
+  (int($snum) == $snum) or die "Wrong parameter type, stopped";
+  
+  $snum = int($snum);
+  $sstr = "$sstr";
+  
+  (($snum >= 100) and ($snum <= 599)) or
+    die "Status code out of range, stopped";
+  ($sstr =~ /\A[\x{20}-\x{7e}]*\z/) or
+    die "Invalid status code description, stopped";
+  
+  # Set status
+  $self->{'_status'}->[0] = $snum;
+  $self->{'_status'}->[1] = $sstr;
+}
+
+=item B<sendTemplate(tcode)>
+
+Send a template back to the HTTP client and exit script without
+returning to caller.
+
+This is a wrapper around C<sendHTML>.  This wrapper runs the template
+and then sends the generated templated to the C<sendHTML> function.  By
+default the template variables available are all the standard path
+variables from the C<cvars> table, except each of their names is
+prefixed with an underscore.  Custom parameters that were defined by the
+C<customParam> function will also be available.
+
+See the C<sendHTML> function for further details on what happens.
+
+=cut
+
+sub sendTemplate {
+  
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameter
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $tcode = shift;
+  (not ref($tcode)) or die "Wrong parameter type, stopped";
+  $tcode = "$tcode";
+  
+  # Open the template
+  my $template = HTML::Template->new(
+                    scalarref => \$tcode,
+                    die_on_bad_params => 0,
+                    no_includes => 1);
+  
+  # Set template parameters
+  $template->param($self->{'_tvar'});
+  
+  # Compile template
+  my $html = $template->output;
+  
+  # Send the HTML
+  $self->sendHTML($html);
+}
+
+=item B<sendHTML(html)>
+
+Send HTML code back to the HTTP client and exit script without returning
+to caller.
+
+First, the core status headers are written to the client, using the MIME
+type C<text/html; charset=utf-8> for the content type, sending the
+current HTTP status (200 OK by default, or else whatever it was last
+changed to with C<setStatus>), and specifying C<no-store> behavior for
+caching.
+
+Next, there may be a C<Set-Cookie> header sent to the HTTP client,
+depending on the current cookie state.  See C<cookieDefault> for the
+default behavior, and C<cookieLogin> and C<cookieCancel> for the other
+behaviors.
+
+The CGI response head is then finished and the HTML code is sent.
+Finally, the script exits without returning to caller.
+
+=cut
+
+sub sendHTML {
+  
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameter
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $html = shift;
+  (not ref($html)) or die "Wrong parameter type, stopped";
+  $html = "$html";
+  
+  # Determine the cookie name
+  my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
+  
+  # Based on the cookie setting and the verify flag, determine the
+  # cookie header line to send, or an empty string if no cookie header
+  # should be sent
+  my $ckh = '';
+  if (($self->{'_cookie'} > 0) or
+        ($self->{'_verify'} and ($self->{'_cookie'} == 0))) {
+    # Cookie mode is in login OR we are in default mode and the client
+    # already has a cookie, so we need to send them a fresh verification
+    # cookie in both cases
+    my $auth_time = sprintf("%x", int(time / 60));
+    my $auth_hmac = hmac_md5_hex(
+                      $auth_time, $self->{'_cvar'}->{'authsecret'});
+    my $payload = "$auth_time|$auth_hmac";
+    
+    $ckh = "Set-Cookie: $cookie_name=$payload; Secure; Path=/\r\n";
+    
+  } elsif ($self->{'_cookie'} < 0) {
+    # Cookie mode is in cancel, so we need to send them an invalid,
+    # expired cookie
+    $ckh = "Set-Cookie: $cookie_name=0; Max-Age=0; Secure; Path=/\r\n";
+  }
+  
+  # Determine status code and description
+  my $status = "$self->{'_status'}->[0] $self->{'_status'}->[1]";
+  
+  # Encode HTML into UTF-8
+  $html = encode('UTF-8', $html, Encode::FB_CROAK);
+  
+  # Set binary output
+  binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
+  
+  # Print the full CGI response
+  print "Content-Type: text/html; charset=utf-8\r\n";
+  print "Status: $status\r\n";
+  print "Cache-Control: no-store\r\n";
+  print "$ckh\r\n";
+  print "$html";
+  
+  # Exit script
+  exit;
 }
 
 =back
