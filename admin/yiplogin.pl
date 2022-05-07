@@ -7,7 +7,6 @@ use Encode qw(encode);
 
 # Non-core dependencies
 use Crypt::Bcrypt qw(bcrypt_check);
-use HTML::Template;
 
 # Yip modules
 use Yip::DB;
@@ -50,9 +49,8 @@ a link is provided to the login page to retry.
 
 # GET form template.
 #
-# This template uses the following template variables:
-#
-#   pageself : path to this script itself
+# This template uses the standard template variables defined by
+# Yip::Admin.
 #
 # The form action POSTs back to this script.  It has the following 
 # fields:
@@ -62,7 +60,7 @@ a link is provided to the login page to retry.
 my $get_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
     <form
-        action="<TMPL_VAR NAME=pageself>"
+        action="<TMPL_VAR NAME=_pathlogin>"
         method="post"
         enctype="application/x-www-form-urlencoded">
       <div class="ctlbox">
@@ -78,27 +76,26 @@ my $get_template = Yip::Admin->format_html('Login', q{
 
 # POST error result template.
 #
-# This template uses the following template variables:
-#
-#   pageself : path to this script itself
+# This template uses the standard template variables defined by
+# Yip::Admin.
 #
 my $err_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
-    <p>Login failed.  <a href="<TMPL_VAR NAME=pageself>">Try
+    <p>Login failed.  <a href="<TMPL_VAR NAME=_pathlogin>">Try
     again</a></p>
 });
 
 # POST success result template.
 #
-# This template uses the following template variables:
-#
-#   homelink : path to the control panel
+# This template uses the standard template variables defined by
+# Yip::Admin.
 #
 my $done_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
     <p>You are now logged in.</p>
     <div id="homelink">
-    <a href="<TMPL_VAR NAME=homelink>">&raquo; Control panel &laquo;</a>
+      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Control panel
+        &laquo;</a>
     </div>
 });
 
@@ -106,92 +103,23 @@ my $done_template = Yip::Admin->format_html('Login', q{
 # Local functions
 # ===============
 
-# send_error(yad)
+# send_error(yap)
 #
-# Send the custom error template back to the client, indicating that the
-# login failed.
-#
+# Set 403 Forbidden status and then send the error template to client.
 # Provide a Yip::Admin utility object.  This function does not return.
 #
 sub send_error {
   # Check parameter count
   ($#_ == 0) or die "Wrong parameter count, stopped";
   
-  # Get parameter and check
-  my $yad = shift;
-  (ref($yad) and $yad->isa('Yip::Admin')) or
+  # Get parameters and check
+  my $yap = shift;
+  (ref($yap) and $yap->isa('Yip::Admin')) or
     die "Wrong parameter type, stopped";
   
-  # Fill in template state
-  my %tvar;  
-  $tvar{'pageself'} = $yad->getVar('pathlogin');
-
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$err_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Status: 403 Forbidden\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Finish headers, print generated template, and exit script
-  print "\r\n$tcode";
-  exit;
-}
-
-# send_done(yad)
-#
-# Send the success template back to the client, indicating that the
-# login succeded.  This will also give the client an authorization
-# cookie.
-#
-# Provide a Yip::Admin utility object.  This function does not return.
-#
-sub send_done {
-  # Check parameter count
-  ($#_ == 0) or die "Wrong parameter count, stopped";
-  
-  # Get parameter and check
-  my $yad = shift;
-  (ref($yad) and $yad->isa('Yip::Admin')) or
-    die "Wrong parameter type, stopped";
-  
-  # Fill in template state
-  my %tvar;
-  
-  $tvar{'homelink'} = $yad->getVar('pathadmin');
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$done_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-
-  # Write main response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Give the user a cookie
-  $yad->sendCookie;
-  
-  # Finish headers, print generated template, and exit
-  print "\r\n$tcode";
-  exit;
+  # Set status and send error
+  $yap->setStatus(403, 'Forbidden');
+  $yap->sendTemplate($err_template);
 }
 
 # ==============
@@ -208,36 +136,16 @@ if ($request_method eq 'GET') { # ======================================
   # GET method so start by connecting to database and loading admin
   # utilities
   my $dbc = Yip::DB->connect($config_dbpath, 0);
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
-  # Fill in template state
-  my %tvar;
-  $tvar{'pageself'} = $yad->getVar('pathlogin');
-  
-  # Open the template
-  my $template = HTML::Template->new(
-                    scalarref => \$get_template,
-                    die_on_bad_params => 0,
-                    no_includes => 1);
-  
-  # Set parameters
-  $template->param(\%tvar);
-  
-  # Compile template
-  my $tcode = $template->output;
-  
-  # Write response headers
-  print "Content-Type: text/html; charset=utf-8\r\n";
-  print "Cache-Control: no-store\r\n";
-  
-  # Finish headers and print generated template
-  print "\r\n$tcode";
+  # Send the template form back
+  $yap->sendTemplate($get_template);
   
 } elsif ($request_method eq 'POST') { # ================================
   # POST method so start by connecting to database and loading admin
   # utilities
   my $dbc = Yip::DB->connect($config_dbpath, 0);
-  my $yad = Yip::Admin->load($dbc);
+  my $yap = Yip::Admin->load($dbc);
   
   # Read all the POSTed form variables
   my $vars = Yip::Admin->parse_form(Yip::Admin->read_client);
@@ -246,16 +154,17 @@ if ($request_method eq 'GET') { # ======================================
   (exists $vars->{'pass'}) or Yip::Admin->bad_request;
   
   # If password is in reset state, always fail
-  ($yad->getVar('authpswd') ne '?') or send_error($yad);
+  ($yap->getVar('authpswd') ne '?') or send_error($yap);
   
   # Make sure password matches after encoding into UTF-8 byte string and
   # checking that it isn't longer than 72 bytes (a bcrypt limit)
   my $pass = encode('UTF-8', $vars->{'pass'}, Encode::FB_CROAK);
-  (length($pass) <= 72) or send_error($yad);
-  (bcrypt_check($pass, $yad->getVar('authpswd'))) or send_error($yad);
+  (length($pass) <= 72) or send_error($yap);
+  (bcrypt_check($pass, $yap->getVar('authpswd'))) or send_error($yap);
   
   # Send the success response to the user and give them their cookie
-  send_done($yad);
+  $yap->cookieLogin;
+  $yap->sendTemplate($done_template);
   
 } else { # =============================================================
   die "Unexpected";
