@@ -148,6 +148,7 @@ if ($request_method eq 'GET') { # ======================================
   my $yap = Yip::Admin->load($dbc);
   
   # Read all the POSTed form variables
+  Yip::Admin->check_form;
   my $vars = Yip::Admin->parse_form(Yip::Admin->read_client);
   
   # We should have a "pass" variable
