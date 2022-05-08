@@ -9,6 +9,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
     # Check we are running as HTTPS CGI and get 'GET' or 'POST' method
     my $method = Yip::Admin->http_method;
     
+    # Verify client is sending us application/x-www-form-urlencoded
+    Yip::Admin->check_form;
+    
     # Read data sent from HTTP client as raw bytes
     my $octets = Yip::Admin->read_client;
     
@@ -232,6 +235,13 @@ function for further information.
     defined, invoking insecure\_protocol if it is not.  Finally, return the
     normalized method, which is either 'GET' or 'HEAD'.
 
+- **check\_form()**
+
+    Check that CGI environment variable REQUEST\_METHOD is set to POST or
+    fatal error otherwise.  Then, check that there is a CGI environment
+    variable CONTENT\_TYPE that is `application/x-www-form-urlencoded` or
+    else send 400 Bad Request back to client.
+
 - **read\_client()**
 
     Read data sent by an HTTP client and return it as a raw binary string.
@@ -255,9 +265,10 @@ function for further information.
     Unicode in the strings.  If there are any problems, sends 400 Bad
     Request back to client and exits without returning.
 
-    This function will also check that there is a CONTENT\_TYPE environment
-    variable defined to `application/x-www-form-urlencoded`.  If not, 400
-    Bad REquest is sent back to client.
+    You can use this both with POSTed data in that format and also to
+    interpret query strings on GET requests.  If you are reading POSTed
+    data, you should use `check_form` to make sure the client sent the
+    right kind of data first.
 
 - **format\_html(title, body\_code)**
 
