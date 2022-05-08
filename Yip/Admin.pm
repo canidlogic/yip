@@ -334,6 +334,22 @@ form {
   border: medium inset;
 }
 
+.txbox {
+  width: 100%;
+  border: thin solid;
+  padding: 0.5em;
+  font-family: monospace;
+}
+
+textarea {
+  width: 100%;
+  height: 12em;
+  border: thin solid;
+  padding: 0.5em;
+  font-family: monospace;
+  resize: vertical;
+}
+
     </style>
   </head>
   <body>};
@@ -634,6 +650,9 @@ the stylesheet:
   
   .btnbox
   DIV for submit button
+  
+  .txbox
+  CSS class for text and number input boxes
   
   .pwbox
   CSS class for password input boxes
