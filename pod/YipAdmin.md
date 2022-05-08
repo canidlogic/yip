@@ -280,6 +280,9 @@ function for further information.
         .btnbox
         DIV for submit button
         
+        .txbox
+        CSS class for text and number input boxes
+        
         .pwbox
         CSS class for password input boxes
         
