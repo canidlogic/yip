@@ -19,6 +19,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
   # Check we are running as HTTPS CGI and get 'GET' or 'POST' method
   my $method = Yip::Admin->http_method;
   
+  # Verify client is sending us application/x-www-form-urlencoded
+  Yip::Admin->check_form;
+  
   # Read data sent from HTTP client as raw bytes
   my $octets = Yip::Admin->read_client;
   
@@ -449,6 +452,32 @@ sub http_method {
   return $request_method;
 }
 
+=item B<check_form()>
+
+Check that CGI environment variable REQUEST_METHOD is set to POST or
+fatal error otherwise.  Then, check that there is a CGI environment
+variable CONTENT_TYPE that is C<application/x-www-form-urlencoded> or
+else send 400 Bad Request back to client.
+
+=cut
+
+sub check_form {
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
+  
+  # Make sure we are in POST mode
+  (exists $ENV{'REQUEST_METHOD'}) or
+    die "Must use in CGI script, stopped";
+  ($ENV{'REQUEST_METHOD'} =~ /\APOST\z/i) or
+    die "Must use with POST method, stopped";
+  
+  # Check that CONTENT_TYPE is correctly defined
+  (exists $ENV{'CONTENT_TYPE'}) or Yip::Admin->bad_request();
+  ($ENV{'CONTENT_TYPE'} =~
+    /\Aapplication\/x-www-form-urlencoded(?:;.*)?\z/i) or
+    Yip::Admin->bad_request();
+}
+
 =item B<read_client()>
 
 Read data sent by an HTTP client and return it as a raw binary string.
@@ -509,9 +538,10 @@ into a hash reference containing the decoded key/value map with possible
 Unicode in the strings.  If there are any problems, sends 400 Bad
 Request back to client and exits without returning.
 
-This function will also check that there is a CONTENT_TYPE environment
-variable defined to C<application/x-www-form-urlencoded>.  If not, 400
-Bad REquest is sent back to client.
+You can use this both with POSTed data in that format and also to
+interpret query strings on GET requests.  If you are reading POSTed
+data, you should use C<check_form> to make sure the client sent the
+right kind of data first.
 
 =cut
 
@@ -526,12 +556,6 @@ sub parse_form {
   my $str = shift;
   (not ref($str)) or die "Wrong parameter type, stopped";
   $str = "$str";
-  
-  # Check that CONTENT_TYPE is correctly defined
-  (exists $ENV{'CONTENT_TYPE'}) or Yip::Admin->bad_request();
-  ($ENV{'CONTENT_TYPE'} =~
-    /\Aapplication\/x-www-form-urlencoded(?:;.*)?\z/i) or
-    Yip::Admin->bad_request();
   
   # Make sure string is 7-bit US-ASCII (Unicode should be encoded in
   # percent escapes)
@@ -981,10 +1005,14 @@ sub load {
   }
   
   # Add all the path variables to the template variable hash, with an
-  # underscore prefixed to their names
+  # underscore prefixed to their names; also, encode their values into
+  # UTF-8 since the template processor works in binary
   for my $pname (keys %ch) {
     if ($pname =~ /\Apath/) {
-      $self->{'_tvar'}->{"_$pname"} = $self->{'_cvar'}->{$pname};
+      $self->{'_tvar'}->{"_$pname"} = encode(
+                                        'UTF-8',
+                                        $self->{'_cvar'}->{$pname},
+                                        Encode::FB_CROAK);
     }
   }
   
@@ -1276,8 +1304,9 @@ sub customParam {
   ($tstr =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or
     die "Invalid parameter value, stopped";
   
-  # Set parameter
-  $self->{'_tvar'}->{$tname} = $tstr;
+  # Set parameter, encoding it into UTF-8 since template processor works
+  # in binary
+  $self->{'_tvar'}->{$tname} = encode('UTF-8', $tstr, Encode::FB_CROAK);
 }
 
 =item B<setStatus(numeric, string)>
@@ -1355,6 +1384,9 @@ sub sendTemplate {
   (not ref($tcode)) or die "Wrong parameter type, stopped";
   $tcode = "$tcode";
   
+  # HTML::Template works with binary strings, so encode UTF-8
+  $tcode = encode('UTF-8', $tcode, Encode::FB_CROAK);
+  
   # Open the template
   my $template = HTML::Template->new(
                     scalarref => \$tcode,
@@ -1366,6 +1398,9 @@ sub sendTemplate {
   
   # Compile template
   my $html = $template->output;
+  
+  # Get back a Unicode string
+  $html = decode('UTF-8', $html, Encode::FB_CROAK);
   
   # Send the HTML
   $self->sendHTML($html);
