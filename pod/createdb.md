@@ -215,8 +215,9 @@ this table:
 
     Path to the import post script.  GET requests display an input form, and
     POST requests perform the update.  File upload is used to transfer the
-    post, which is contained within a Zip archive.  The import operation is
-    able to either add a new post or overwrite an existing post.
+    post, which is contained within a MIME message (see `Yip::Post`).  The
+    import operation is able to either add a new post or overwrite an
+    existing post.
 
 - `pathdownload`
 
@@ -229,8 +230,8 @@ this table:
 
     Path to the export post script.  GET requests require a single variable
     `post` whose value is the UID of the post that is being requested.
-    This shows a confirmation prompt.  The POST request will generate the
-    actual archive of the post to download.
+    This shows a confirmation prompt.  The POST request will generate a MIME
+    message of the post to download (see `Yip::Post`).
 
 - `pathgenuid`
 
@@ -564,7 +565,7 @@ newest archive will not be in any archive and appear on the main catalog
 page.  If there are no archives defined, then all posts will appear on
 the main catalog page.
 
-## templ table
+## tmpl table
 
 The `tmpl` table stores HTML templates used for generated page content.
 However, this table does _not_ store templates used for the
