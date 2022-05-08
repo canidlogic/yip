@@ -102,6 +102,7 @@ if ($request_method eq 'GET') { # ======================================
   $yap->checkCookie;
   
   # Read all the POSTed form variables
+  Yip::Admin->check_form;
   my $vars = Yip::Admin->parse_form(Yip::Admin->read_client);
   
   # Generate a new secret key so we can perform a logout action
