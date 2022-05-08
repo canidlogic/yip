@@ -229,8 +229,9 @@ resources may be overwritten.
 
 Path to the import post script.  GET requests display an input form, and
 POST requests perform the update.  File upload is used to transfer the
-post, which is contained within a Zip archive.  The import operation is
-able to either add a new post or overwrite an existing post.
+post, which is contained within a MIME message (see C<Yip::Post>).  The
+import operation is able to either add a new post or overwrite an
+existing post.
 
 =item C<pathdownload>
 
@@ -243,8 +244,8 @@ C<template> or C<global>.  The script transfers the raw data contents.
 
 Path to the export post script.  GET requests require a single variable
 C<post> whose value is the UID of the post that is being requested.
-This shows a confirmation prompt.  The POST request will generate the
-actual archive of the post to download.
+This shows a confirmation prompt.  The POST request will generate a MIME
+message of the post to download (see C<Yip::Post>).
 
 =item C<pathgenuid>
 
@@ -588,7 +589,7 @@ newest archive will not be in any archive and appear on the main catalog
 page.  If there are no archives defined, then all posts will appear on
 the main catalog page.
 
-=head2 templ table
+=head2 tmpl table
 
 The C<tmpl> table stores HTML templates used for generated page content.
 However, this table does I<not> store templates used for the
@@ -789,6 +790,16 @@ CREATE UNIQUE INDEX ix_parc_uid
 
 CREATE UNIQUE INDEX ix_parc_until
   ON parc(parcuntil);
+
+CREATE TABLE tmpl(
+  tmplid    INTEGER PRIMARY KEY ASC,
+  tmplname  TEXT UNIQUE NOT NULL,
+  tmplcache INTEGER NOT NULL,
+  tmplcode  TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX ix_tmpl_name
+  ON tmpl(tmplname);
 
 };
 
