@@ -7,6 +7,7 @@ use Encode qw(decode encode);
 # Non-core dependencies
 use Digest::HMAC_MD5 qw(hmac_md5_hex);
 use HTML::Template;
+use MIME::Parser;
 
 =head1 NAME
 
@@ -22,11 +23,18 @@ Yip::Admin - Common utilities for administration CGI scripts.
   # Verify client is sending us application/x-www-form-urlencoded
   Yip::Admin->check_form;
   
+  # Verify client is sending us multipart/form-data
+  Yip::Admin->check_upload;
+  
   # Read data sent from HTTP client as raw bytes
   my $octets = Yip::Admin->read_client;
   
   # Parse application/x-www-form-urlencoded into hashref
   my $vars = Yip::Admin->parse_form($octets);
+  my $example = $vars->{'example_var'};
+  
+  # Parse multipart/form-data into hashref, files as binary strings
+  my $vars = Yip::Admin->parse_upload($octets);
   my $example = $vars->{'example_var'};
   
   # Generate HTML or HTML template in "house" CGI style
@@ -409,6 +417,154 @@ my $err_request =
     <p>Client did not send a valid request.</p>
 });
 
+# ===============
+# Local functions
+# ===============
+
+# valid_tval(val, depth)
+#
+# Check whether the given val parameter is valid as a template variable
+# value.  depth counts the depth of template array nesting, and must be
+# an integer that is greater than zero; it should be set to one by
+# callers.
+#
+# The first check is that the depth does not exceed 64.  Each time there
+# is a nested template array, the depth will increase by one.  This
+# prevents loops within references.
+#
+# The second check is that val is either a scalar or an array reference.
+#
+# If val is a scalar, then it is checked as a string that each element
+# is in Unicode codepoint range and nothing is in surrogate range.
+#
+# If val is an array reference, then it is checked that every array
+# element is a hash reference.  (An empty array is also OK.)  Each of
+# this referenced hashes must have each property name be a string of one
+# to 31 ASCII lowercase letters, digits, and underscores, where the
+# first character is not an underscore.  Each property value must
+# recursively satisfy valid_tval() with the depth increased by one.
+#
+# Return value is 1 if valid, 0 if not valid.
+#
+sub valid_tval {
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get parameters and check
+  my $val   = shift;
+  my $depth = shift;
+  
+  ((not ref($depth)) and (int($depth) == $depth)) or
+    die "Wrong parameter type, stopped";
+  $depth = int($depth);
+  ($depth > 0) or die "Invalid parameter value, stopped";
+  
+  # Check depth
+  ($depth <= 64) or return 0;
+  
+  # Check cases
+  if (not ref($val)) {
+    # Scalar, check string
+    ($val =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or return 0;
+    
+  } elsif (ref($val) eq 'ARRAY') {
+    # Array reference, check each element
+    for my $e (@$val) {
+    
+      # Make sure element is a hash reference
+      (ref($e) eq 'HASH') or return 0;
+      
+      # Check each property of the hash reference
+      for my $p (keys %$e) {
+      
+        # Check property name
+        ($p =~ /\A[a-z0-9][a-z0-9_]{0,30}\z/) or return 0;
+        
+        # Recursively check property value
+        (valid_tval($e->{$p}, $depth + 1)) or return 0;
+      }
+    }
+  
+  } else {
+    # Not a scalar and not an array ref
+    return 0;
+  }
+  
+  # If we got here, it checks out
+  return 1;
+}
+
+# encode_tval(val, depth)
+#
+# Make a deep copy of the given val parameter and make sure that all
+# strings are encoded into UTF-8 in the copy.  depth counts the depth of
+# template array nesting, and must be an integer that is greater than
+# zero; it should be set to one by callers.
+#
+# First, the function checks that the depth does not exceed 64, or a
+# fatal error occurs.  Each time there is a nested template array, the
+# depth will increase by one.  This prevents loops within references.
+#
+# If val is a scalar, then it will be encoded as a binary string into
+# UTF-8 and the encoded string will be returned.
+#
+# If val is an array reference, then a new array will be created and
+# copies of each element made one by one.  (Empty array is also OK.)
+# Each element must be a hash ref.  A new hash ref is created in the
+# copy, an each property is copied over.  However, property values are
+# recursively copied with encode_tval(), except the depth is increased
+# by one.  The return value is an array reference to the encoded copy.
+#
+sub encode_tval {
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get parameters and check depth
+  my $val   = shift;
+  my $depth = shift;
+  
+  ((not ref($depth)) and (int($depth) == $depth)) or
+    die "Wrong parameter type, stopped";
+  $depth = int($depth);
+  (($depth > 0) and ($depth <= 64)) or
+    die "Depth out of range, stopped";
+  
+  # Handle cases
+  if (not ref($val)) {
+    # Scalar, return encoded string
+    return encode('UTF-8', $val, Encode::FB_CROAK);
+    
+  } elsif (ref($val) eq 'ARRAY') {
+    # Array reference, make new array
+    my @na;
+    
+    # Copy all elements and encode them
+    for my $e (@$val) {
+    
+      # Make sure element is a hash reference
+      (ref($e) eq 'HASH') or die "Invalid array element, stopped";
+      
+      # Create new hash
+      my $hv = { };
+      
+      # Encode each property
+      for my $p (keys %$e) {
+        $hv->{$p} = encode_tval($e->{$p}, $depth + 1);
+      }
+      
+      # Add the hash reference to the array
+      push @na, ($hv);
+    }
+    
+    # Return reference to encoded array
+    return \@na;
+  
+  } else {
+    # Not a scalar and not an array ref
+    die "Invalid value type, stopped";
+  }
+}
+
 =head1 CLASS METHODS
 
 =over 4
@@ -475,6 +631,32 @@ sub check_form {
   (exists $ENV{'CONTENT_TYPE'}) or Yip::Admin->bad_request();
   ($ENV{'CONTENT_TYPE'} =~
     /\Aapplication\/x-www-form-urlencoded(?:;.*)?\z/i) or
+    Yip::Admin->bad_request();
+}
+
+=item B<check_upload()>
+
+Check that CGI environment variable REQUEST_METHOD is set to POST or
+fatal error otherwise.  Then, check that there is a CGI environment
+variable CONTENT_TYPE that is C<multipart/form-data> or else send 400
+Bad Request back to client.
+
+=cut
+
+sub check_upload {
+  # Check parameter count
+  ($#_ == 0) or die "Wrong number of arguments, stopped";
+  
+  # Make sure we are in POST mode
+  (exists $ENV{'REQUEST_METHOD'}) or
+    die "Must use in CGI script, stopped";
+  ($ENV{'REQUEST_METHOD'} =~ /\APOST\z/i) or
+    die "Must use with POST method, stopped";
+  
+  # Check that CONTENT_TYPE is correctly defined
+  (exists $ENV{'CONTENT_TYPE'}) or Yip::Admin->bad_request();
+  ($ENV{'CONTENT_TYPE'} =~
+    /\Amultipart\/form-data(?:;.*)?\z/i) or
     Yip::Admin->bad_request();
 }
 
@@ -648,6 +830,91 @@ sub parse_form {
     
     # Add variable to hash result
     $result{$dname} = $dval;
+  }
+  
+  # Return result reference
+  return \%result;
+}
+
+=item B<parse_upload($str)>
+
+Given a string in multipart/form-data format, parse it into a hash
+reference containing the decoded key/value map with strings and uploaded
+files as binary string.  If there are any problems, sends 400 Bad
+Request back to client and exits without returning.
+
+B<NOTE:> Strings are always left in binary format.  This is in contrast
+to the C<parse_form> function, which decodes strings to Unicode.  This
+difference is to allow for raw binary files.
+
+B<NOTE:> Does not support multiple files uploaded for a single field.
+Each file control may only upload a single file.
+
+B<WARNING:> Everything parsed in memory, so if client sends huge upload,
+you can exhaust memory space.  Make sure clients are authorized before
+attempting to read what they are uploading in any way.
+
+You should use C<check_upload> to make sure the client sent the right
+kind of data first.
+
+=cut
+
+sub parse_upload {
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of arguments, stopped";
+  
+  # Ignore class argument
+  shift;
+  
+  # Get the string argument
+  my $str = shift;
+  (not ref($str)) or die "Wrong parameter type, stopped";
+  
+  # Create MIME parser with everything set to in-memory mode
+  my $parser = new MIME::Parser;
+  $parser->output_to_core(1);
+  $parser->tmp_to_core(1);
+  
+  # Parse the data into an entity
+  my $entity;
+  eval {
+    $entity = $parser->parse_data($str);
+  };
+  if ($@) {
+    Yip::Admin->bad_request;
+  }
+  
+  # Check that MIME object is appropriate type and multipart
+  ($entity->effective_type =~ /\Amultipart\/form-data(?:;.*)?\z/i) or
+    Yip::Admin->bad_request;
+  ($entity->is_multipart) or Yip::Admin->bad_request;
+  
+  # Start the hash off empty
+  my %result;
+  
+  # Go through each MIME part
+  my $part_count = scalar($entity->parts);
+  for(my $i = 0; $i < $part_count; $i++) {
+    # Get the current part
+    my $part = $entity->parts($i);
+    
+    # We don't support multi-file controls, so no part should be
+    # recursively multipart
+    (not $part->is_multipart) or Yip::Admin->bad_request;
+    
+    # Make sure this is form data
+    ($part->head->mime_attr('content-disposition') =~
+        /\Aform\-data\z/i) or Yip::Admin->bad_request;
+    
+    # Get the data field name
+    my $dfield = $part->head->mime_attr('content-disposition.name');
+    (defined $dfield) or Yip::Admin->bad_request;
+    
+    # Make sure field name not defined yet in hash
+    (not (exists $result{$dfield})) or Yip::Admin->bad_request;
+    
+    # Store all the body data in the hash
+    $result{$dfield} = $part->bodyhandle->as_string;
   }
   
   # Return result reference
@@ -1276,8 +1543,15 @@ already defined, it will be overwritten with the name value.
 The name must be a string of one to 31 ASCII lowercase letters, digits,
 and underscores, where the first character is not an underscore.
 
-The value must be a string, which can hold any Unicode codepoints,
-excluding surrogates.
+The value must either be a string (which can hold any Unicode
+codepoints, excluding surrogates) or a I<template array>.  A template
+array is an array reference where each element of the array is a hash
+reference.  Each property of those hashes must have a name that is a
+sequence of one to 31 ASCII lowercase letters, digits, and underscores,
+where the first character is not an underscore.  Each value of those
+properties must either be a string (which can hold any Unicode
+codepoints, excluding surrogates) or another template array.  The
+maximum depth of nested template arrays is 64.
 
 =cut
 
@@ -1292,21 +1566,18 @@ sub customParam {
     die "Wrong parameter type, stopped";
   
   my $tname = shift;
-  my $tstr  = shift;
+  my $tval  = shift;
   
-  ((not ref($tname)) and (not ref($tstr))) or
-    die "Wrong parameter type, stopped";
+  (not ref($tname)) or die "Wrong parameter type, stopped";
   $tname = "$tname";
-  $tstr  = "$tstr";
   
-  ($tname =~ /\A[a-z0-9][a-z0-9_]*\z/) or
+  ($tname =~ /\A[a-z0-9][a-z0-9_]{0,30}\z/) or
     die "Invalid parameter name, stopped";
-  ($tstr =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or
-    die "Invalid parameter value, stopped";
+  (valid_tval($tval, 1)) or die "Invalid parameter value, stopped";
   
-  # Set parameter, encoding it into UTF-8 since template processor works
-  # in binary
-  $self->{'_tvar'}->{$tname} = encode('UTF-8', $tstr, Encode::FB_CROAK);
+  # Set parameter, making a copy and encoding it into UTF-8 since
+  # template processor works in binary
+  $self->{'_tvar'}->{$tname} = encode_tval($tval, 1);
 }
 
 =item B<setStatus(numeric, string)>
