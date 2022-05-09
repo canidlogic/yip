@@ -12,11 +12,18 @@ Yip::Admin - Common utilities for administration CGI scripts.
     # Verify client is sending us application/x-www-form-urlencoded
     Yip::Admin->check_form;
     
+    # Verify client is sending us multipart/form-data
+    Yip::Admin->check_upload;
+    
     # Read data sent from HTTP client as raw bytes
     my $octets = Yip::Admin->read_client;
     
     # Parse application/x-www-form-urlencoded into hashref
     my $vars = Yip::Admin->parse_form($octets);
+    my $example = $vars->{'example_var'};
+    
+    # Parse multipart/form-data into hashref, files as binary strings
+    my $vars = Yip::Admin->parse_upload($octets);
     my $example = $vars->{'example_var'};
     
     # Generate HTML or HTML template in "house" CGI style
@@ -242,6 +249,13 @@ function for further information.
     variable CONTENT\_TYPE that is `application/x-www-form-urlencoded` or
     else send 400 Bad Request back to client.
 
+- **check\_upload()**
+
+    Check that CGI environment variable REQUEST\_METHOD is set to POST or
+    fatal error otherwise.  Then, check that there is a CGI environment
+    variable CONTENT\_TYPE that is `multipart/form-data` or else send 400
+    Bad Request back to client.
+
 - **read\_client()**
 
     Read data sent by an HTTP client and return it as a raw binary string.
@@ -269,6 +283,27 @@ function for further information.
     interpret query strings on GET requests.  If you are reading POSTed
     data, you should use `check_form` to make sure the client sent the
     right kind of data first.
+
+- **parse\_upload($str)**
+
+    Given a string in multipart/form-data format, parse it into a hash
+    reference containing the decoded key/value map with strings and uploaded
+    files as binary string.  If there are any problems, sends 400 Bad
+    Request back to client and exits without returning.
+
+    **NOTE:** Strings are always left in binary format.  This is in contrast
+    to the `parse_form` function, which decodes strings to Unicode.  This
+    difference is to allow for raw binary files.
+
+    **NOTE:** Does not support multiple files uploaded for a single field.
+    Each file control may only upload a single file.
+
+    **WARNING:** Everything parsed in memory, so if client sends huge upload,
+    you can exhaust memory space.  Make sure clients are authorized before
+    attempting to read what they are uploading in any way.
+
+    You should use `check_upload` to make sure the client sent the right
+    kind of data first.
 
 - **format\_html(title, body\_code)**
 
@@ -480,8 +515,15 @@ function for further information.
     The name must be a string of one to 31 ASCII lowercase letters, digits,
     and underscores, where the first character is not an underscore.
 
-    The value must be a string, which can hold any Unicode codepoints,
-    excluding surrogates.
+    The value must either be a string (which can hold any Unicode
+    codepoints, excluding surrogates) or a _template array_.  A template
+    array is an array reference where each element of the array is a hash
+    reference.  Each property of those hashes must have a name that is a
+    sequence of one to 31 ASCII lowercase letters, digits, and underscores,
+    where the first character is not an underscore.  Each value of those
+    properties must either be a string (which can hold any Unicode
+    codepoints, excluding surrogates) or another template array.  The
+    maximum depth of nested template arrays is 64.
 
 - **setStatus(numeric, string)**
 
