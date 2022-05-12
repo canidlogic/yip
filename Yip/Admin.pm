@@ -361,6 +361,14 @@ textarea {
   resize: vertical;
 }
 
+.slbox {
+  width: 100%;
+  border: thin solid;
+  padding: 0.5em;
+  font-family: monospace;
+  background-color: white;
+}
+
     </style>
   </head>
   <body>};
