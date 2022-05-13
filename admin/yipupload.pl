@@ -145,8 +145,8 @@ my $err_template = Yip::Admin->format_html('Upload global resource', q{
 # send_error(yap, errmsg)
 #
 # Send the custom error template back to the client, indicating that the
-# edit operation failed.  The provided error message will be included in
-# the error page.  May also be used by the GET page in certain cases.
+# operation failed.  The provided error message will be included in the
+# error page.  May also be used by the GET page in certain cases.
 #
 # Provide a Yip::Admin utility object.  This function does not return.
 #
