@@ -17,8 +17,10 @@ downloaded.  The client must have an authorization cookie to use this
 script.
 
 **Note:** Global resources are served by this script with caching
-disabled so that the client always gets the current copy.  This is
-_not_ the script to use for serving global resources to the public.
+disabled so that the client always gets the current copy.  Also,
+resources are served with attachment disposition intended for
+downloading.  This is _not_ the script to use for serving global
+resources to the public.
 
 The GET request takes either a `template` variable that names the
 template to download, or a `global` variable that gives the UID of the
