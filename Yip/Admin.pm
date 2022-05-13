@@ -90,7 +90,11 @@ Yip::Admin - Common utilities for administration CGI scripts.
   $yap->sendHTML($html);
   
   # Respond with a binary file of given type (does not return)
-  $yap->sendRaw($octets, 'image/jpeg');
+  $yap->sendRaw($octets, 'image/jpeg', undef);
+  
+  # Respond with a binary file in attachment disposition (does not
+  # return)
+  $yap->sendRaw($octets, 'image/jpeg', 'example.jpg');
 
 =head1 DESCRIPTION
 
