@@ -88,6 +88,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
   
   # Respond with non-template HTML code (does not return)
   $yap->sendHTML($html);
+  
+  # Respond with a binary file of given type (does not return)
+  $yap->sendRaw($octets, 'image/jpeg');
 
 =head1 DESCRIPTION
 
@@ -186,14 +189,18 @@ responding immediately to low-level errors.
 =head3 Send functions
 
 The best way to end an administrator script is by calling either the
-C<sendTemplate> or C<sendHTML> function.  (Internally, the function
-C<sendTemplate> is just a wrapper around C<sendHTML>.)  It is
+C<sendTemplate> or C<sendHTML> or C<sendRaw> function.  (Internally, the
+function C<sendTemplate> is just a wrapper around C<sendHTML>, and the
+function C<sendHTML> is just a wrapper around C<sendRaw>.)  It is
 recommended that you use the C<format_html> function to generate HTML or
 HTML template code in the "house style" for administrator CGI scripts.
 
 These send functions are instance methods, so you must have an instance
-of C<Yip::Admin> in order to use them.  The only difference between the
-two is that C<sendTemplate> will perform template processing.
+of C<Yip::Admin> in order to use them.  The only difference between
+C<sendTemplate> and C<sendHTML> is that the former will perform template
+processing.  C<sendHTML> is just a wrapper around C<sendRaw> that
+encodes the HTML to UTF-8 and then sends it along with the appropriate
+MIME type for HTML in UTF-8.
 
 By default, the template processor will make all of the standard path
 variables defined in the C<cvars> table available as template variables,
@@ -1705,19 +1712,11 @@ sub sendTemplate {
 Send HTML code back to the HTTP client and exit script without returning
 to caller.
 
-First, the core status headers are written to the client, using the MIME
-type C<text/html; charset=utf-8> for the content type, sending the
-current HTTP status (200 OK by default, or else whatever it was last
-changed to with C<setStatus>), and specifying C<no-store> behavior for
-caching.
+This is a wrapper around sendRaw that encodes the given string into
+UTF-8 and then sends it along with C<text/html; charset=utf-8> as the
+MIME type.
 
-Next, there may be a C<Set-Cookie> header sent to the HTTP client,
-depending on the current cookie state.  See C<cookieDefault> for the
-default behavior, and C<cookieLogin> and C<cookieCancel> for the other
-behaviors.
-
-The CGI response head is then finished and the HTML code is sent.
-Finally, the script exits without returning to caller.
+See the C<sendRaw> function for further details on what happens.
 
 =cut
 
@@ -1734,6 +1733,57 @@ sub sendHTML {
   my $html = shift;
   (not ref($html)) or die "Wrong parameter type, stopped";
   $html = "$html";
+  
+  # Encode HTML into UTF-8
+  $html = encode('UTF-8', $html, Encode::FB_CROAK);
+  
+  # Send the response
+  $self->sendRaw($html, 'text/html; charset=utf-8');
+}
+
+=item B<sendRaw(octets, mime)>
+
+Send a raw resource back to the HTTP client and exit script without
+returning to caller.
+
+C<octets> is a raw binary string containing the data to send.  C<mime>
+is the MIME type of the data, which must be a sequence of printing ASCII
+characters in range [U+0020, U+007E].
+
+First, the core status headers are written to the client, using the
+given MIME type for the content type, sending the current HTTP status
+(200 OK by default, or else whatever it was last changed to with
+C<setStatus>), and specifying C<no-store> behavior for caching.
+
+Next, there may be a C<Set-Cookie> header sent to the HTTP client,
+depending on the current cookie state.  See C<cookieDefault> for the
+default behavior, and C<cookieLogin> and C<cookieCancel> for the other
+behaviors.
+
+The CGI response head is then finished and the resource is sent.
+Finally, the script exits without returning to caller.
+
+=cut
+
+sub sendRaw {
+  
+  # Check parameter count
+  ($#_ == 2) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameters
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $octets = shift;
+  (not ref($octets)) or die "Wrong parameter type, stopped";
+  ($octets =~ /\A[\x{0}-\x{ff}]*\z/) or
+    die "Wrong parameter type, stopped";
+  
+  my $mime = shift;
+  (not ref($mime)) or die "Wrong parameter type, stopped";
+  ($mime =~ /\A[\x{20}-\x{7e}]*\z/) or
+    die "Invalid MIME type, stopped";
   
   # Determine the cookie name
   my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
@@ -1763,18 +1813,15 @@ sub sendHTML {
   # Determine status code and description
   my $status = "$self->{'_status'}->[0] $self->{'_status'}->[1]";
   
-  # Encode HTML into UTF-8
-  $html = encode('UTF-8', $html, Encode::FB_CROAK);
-  
   # Set binary output
   binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
   
   # Print the full CGI response
-  print "Content-Type: text/html; charset=utf-8\r\n";
+  print "Content-Type: $mime\r\n";
   print "Status: $status\r\n";
   print "Cache-Control: no-store\r\n";
   print "$ckh\r\n";
-  print "$html";
+  print "$octets";
   
   # Exit script
   exit;
