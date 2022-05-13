@@ -79,7 +79,11 @@ Yip::Admin - Common utilities for administration CGI scripts.
     $yap->sendHTML($html);
     
     # Respond with a binary file of given type (does not return)
-    $yap->sendRaw($octets, 'image/jpeg');
+    $yap->sendRaw($octets, 'image/jpeg', undef);
+    
+    # Respond with a binary file in attachment disposition (does not
+    # return)
+    $yap->sendRaw($octets, 'image/jpeg', 'example.jpg');
 
 # DESCRIPTION
 
@@ -575,7 +579,7 @@ function for further information.
 
     See the `sendRaw` function for further details on what happens.
 
-- **sendRaw(octets, mime)**
+- **sendRaw(octets, mime, filename)**
 
     Send a raw resource back to the HTTP client and exit script without
     returning to caller.
@@ -584,10 +588,19 @@ function for further information.
     is the MIME type of the data, which must be a sequence of printing ASCII
     characters in range \[U+0020, U+007E\].
 
+    `filename` should normally be undefined to indicate that the resource
+    will be sent with the usual inline disposition.  If you want to send
+    something that should be downloaded as a binary file rather than
+    displayed in the browser, provide a `filename` parameter that will be
+    the default filename.  It must be a string of one or more ASCII
+    alphanumerics and underscores, dots, and hyphens.
+
     First, the core status headers are written to the client, using the
     given MIME type for the content type, sending the current HTTP status
     (200 OK by default, or else whatever it was last changed to with
-    `setStatus`), and specifying `no-store` behavior for caching.
+    `setStatus`), and specifying `no-store` behavior for caching.  If the
+    `filename` parameter was specified, a content disposition header is
+    written with attachment disposition and the given recommended filename.
 
     Next, there may be a `Set-Cookie` header sent to the HTTP client,
     depending on the current cookie state.  See `cookieDefault` for the
