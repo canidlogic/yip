@@ -26,8 +26,10 @@ downloaded.  The client must have an authorization cookie to use this
 script.
 
 B<Note:> Global resources are served by this script with caching
-disabled so that the client always gets the current copy.  This is
-I<not> the script to use for serving global resources to the public.
+disabled so that the client always gets the current copy.  Also,
+resources are served with attachment disposition intended for
+downloading.  This is I<not> the script to use for serving global
+resources to the public.
 
 The GET request takes either a C<template> variable that names the
 template to download, or a C<global> variable that gives the UID of the
@@ -187,7 +189,7 @@ if (exists $vars->{'template'}) { # ====================================
   $dbh = $dbc->finishWork;
   
   # Send the template code back to client as plain text
-  $yap->sendRaw($qr, 'text/plain; charset=utf-8');
+  $yap->sendRaw($qr, 'text/plain; charset=utf-8', "$tname");
   
 } elsif (exists $vars->{'global'}) { # =================================
   # Get the UID and check format
@@ -219,7 +221,7 @@ if (exists $vars->{'template'}) { # ====================================
   $dbc->finishWork;
   
   # Send the resource back to client with appropriate MIME type
-  $yap->sendRaw($raw, $ct);
+  $yap->sendRaw($raw, $ct, "global-$uid");
   
 } else { # =============================================================
   die "Unexpected";
