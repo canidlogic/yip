@@ -291,14 +291,19 @@ function for further information.
     files as binary string.  If there are any problems, sends 400 Bad
     Request back to client and exits without returning.
 
-    **NOTE:** Strings are always left in binary format.  This is in contrast
+    This will call check\_upload automatically because it needs to access the
+    CONTENT\_TYPE CGI environment variable to function.  This is in contrast
+    to the `parse_form` function, which does not check any CGI environment
+    variables.
+
+    **Note:** Strings are always left in binary format.  This is in contrast
     to the `parse_form` function, which decodes strings to Unicode.  This
     difference is to allow for raw binary files.
 
-    **NOTE:** Does not support multiple files uploaded for a single field.
+    **Note:** Does not support multiple files uploaded for a single field.
     Each file control may only upload a single file.
 
-    **WARNING:** Everything parsed in memory, so if client sends huge upload,
+    **Warning:** Everything parsed in memory, so if client sends huge upload,
     you can exhaust memory space.  Make sure clients are authorized before
     attempting to read what they are uploading in any way.
 
