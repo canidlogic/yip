@@ -1738,10 +1738,10 @@ sub sendHTML {
   $html = encode('UTF-8', $html, Encode::FB_CROAK);
   
   # Send the response
-  $self->sendRaw($html, 'text/html; charset=utf-8');
+  $self->sendRaw($html, 'text/html; charset=utf-8', undef);
 }
 
-=item B<sendRaw(octets, mime)>
+=item B<sendRaw(octets, mime, filename)>
 
 Send a raw resource back to the HTTP client and exit script without
 returning to caller.
@@ -1750,10 +1750,19 @@ C<octets> is a raw binary string containing the data to send.  C<mime>
 is the MIME type of the data, which must be a sequence of printing ASCII
 characters in range [U+0020, U+007E].
 
+C<filename> should normally be undefined to indicate that the resource
+will be sent with the usual inline disposition.  If you want to send
+something that should be downloaded as a binary file rather than
+displayed in the browser, provide a C<filename> parameter that will be
+the default filename.  It must be a string of one or more ASCII
+alphanumerics and underscores, dots, and hyphens.
+
 First, the core status headers are written to the client, using the
 given MIME type for the content type, sending the current HTTP status
 (200 OK by default, or else whatever it was last changed to with
-C<setStatus>), and specifying C<no-store> behavior for caching.
+C<setStatus>), and specifying C<no-store> behavior for caching.  If the
+C<filename> parameter was specified, a content disposition header is
+written with attachment disposition and the given recommended filename.
 
 Next, there may be a C<Set-Cookie> header sent to the HTTP client,
 depending on the current cookie state.  See C<cookieDefault> for the
@@ -1768,7 +1777,7 @@ Finally, the script exits without returning to caller.
 sub sendRaw {
   
   # Check parameter count
-  ($#_ == 2) or die "Wrong number of parameters, stopped";
+  ($#_ == 3) or die "Wrong number of parameters, stopped";
   
   # Get self and parameters
   my $self = shift;
@@ -1784,6 +1793,13 @@ sub sendRaw {
   (not ref($mime)) or die "Wrong parameter type, stopped";
   ($mime =~ /\A[\x{20}-\x{7e}]*\z/) or
     die "Invalid MIME type, stopped";
+  
+  my $fname = shift;
+  if (defined($fname)) {
+    (not ref($fname)) or die "Wrong parameter type, stopped";
+    ($fname =~ /\A[A-Za-z0-9_\.\-]+\z/) or
+      die "Invalid filename format, stopped";
+  }
   
   # Determine the cookie name
   my $cookie_name = '__Host-' . $self->{'_cvar'}->{'authsuffix'};
@@ -1819,6 +1835,9 @@ sub sendRaw {
   # Print the full CGI response
   print "Content-Type: $mime\r\n";
   print "Status: $status\r\n";
+  if (defined($fname)) {
+    print "Content-Disposition: attachment; filename=\"$fname\"\r\n";
+  }
   print "Cache-Control: no-store\r\n";
   print "$ckh\r\n";
   print "$octets";
