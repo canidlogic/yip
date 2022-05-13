@@ -228,10 +228,10 @@ this table:
 
 - `pathexport`
 
-    Path to the export post script.  GET requests require a single variable
-    `post` whose value is the UID of the post that is being requested.
-    This shows a confirmation prompt.  The POST request will generate a MIME
-    message of the post to download (see `Yip::Post`).
+    Path to the export post script.  This takes a GET query string with a
+    single variable `post` whose value is the UID of the post that is being
+    requested.  A MIME message of the post will be generated (see the module
+    `Yip::Post` for details of the format).
 
 - `pathgenuid`
 
