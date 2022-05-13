@@ -734,6 +734,9 @@ CREATE TABLE gres(
 CREATE UNIQUE INDEX ix_gres_uid
   ON gres(gresuid);
 
+CREATE INDEX ix_gres_type
+  ON gres(rtypeid);
+
 CREATE TABLE vars(
   varsid  INTEGER PRIMARY KEY ASC,
   varskey TEXT UNIQUE NOT NULL,
@@ -777,6 +780,9 @@ CREATE INDEX ix_att_post
 
 CREATE UNIQUE INDEX ix_att_rec
   ON att(postid, attidx);
+
+CREATE INDEX ix_att_type
+  ON att(rtypeid);
 
 CREATE TABLE parc(
   parcid    INTEGER PRIMARY KEY ASC,
