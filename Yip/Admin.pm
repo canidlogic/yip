@@ -851,14 +851,19 @@ reference containing the decoded key/value map with strings and uploaded
 files as binary string.  If there are any problems, sends 400 Bad
 Request back to client and exits without returning.
 
-B<NOTE:> Strings are always left in binary format.  This is in contrast
+This will call check_upload automatically because it needs to access the
+CONTENT_TYPE CGI environment variable to function.  This is in contrast
+to the C<parse_form> function, which does not check any CGI environment
+variables.
+
+B<Note:> Strings are always left in binary format.  This is in contrast
 to the C<parse_form> function, which decodes strings to Unicode.  This
 difference is to allow for raw binary files.
 
-B<NOTE:> Does not support multiple files uploaded for a single field.
+B<Note:> Does not support multiple files uploaded for a single field.
 Each file control may only upload a single file.
 
-B<WARNING:> Everything parsed in memory, so if client sends huge upload,
+B<Warning:> Everything parsed in memory, so if client sends huge upload,
 you can exhaust memory space.  Make sure clients are authorized before
 attempting to read what they are uploading in any way.
 
@@ -877,7 +882,17 @@ sub parse_upload {
   # Get the string argument
   my $str = shift;
   (not ref($str)) or die "Wrong parameter type, stopped";
+
+  # Make sure the CGI environment state is correct
+  Yip::Admin->check_upload;
   
+  # Insert the Content-Type header so that we can parse the MIME
+  # correctly
+  my $ct = $ENV{'CONTENT_TYPE'};
+  $ct =~ s/\A[ \t]+//;
+  $ct =~ s/[ \t\r\n]+\z//;
+  $str = "Content-Type: $ct\r\n\r\n" . $str;
+
   # Create MIME parser with everything set to in-memory mode
   my $parser = new MIME::Parser;
   $parser->output_to_core(1);
@@ -891,7 +906,7 @@ sub parse_upload {
   if ($@) {
     Yip::Admin->bad_request;
   }
-  
+
   # Check that MIME object is appropriate type and multipart
   ($entity->effective_type =~ /\Amultipart\/form-data(?:;.*)?\z/i) or
     Yip::Admin->bad_request;
