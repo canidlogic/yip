@@ -242,10 +242,10 @@ C<template> or C<global>.  The script transfers the raw data contents.
 
 =item C<pathexport>
 
-Path to the export post script.  GET requests require a single variable
-C<post> whose value is the UID of the post that is being requested.
-This shows a confirmation prompt.  The POST request will generate a MIME
-message of the post to download (see C<Yip::Post>).
+Path to the export post script.  This takes a GET query string with a
+single variable C<post> whose value is the UID of the post that is being
+requested.  A MIME message of the post will be generated (see the module
+C<Yip::Post> for details of the format).
 
 =item C<pathgenuid>
 
