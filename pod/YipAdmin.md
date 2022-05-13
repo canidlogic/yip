@@ -77,6 +77,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
     
     # Respond with non-template HTML code (does not return)
     $yap->sendHTML($html);
+    
+    # Respond with a binary file of given type (does not return)
+    $yap->sendRaw($octets, 'image/jpeg');
 
 # DESCRIPTION
 
@@ -162,14 +165,18 @@ responding immediately to low-level errors.
 ### Send functions
 
 The best way to end an administrator script is by calling either the
-`sendTemplate` or `sendHTML` function.  (Internally, the function
-`sendTemplate` is just a wrapper around `sendHTML`.)  It is
+`sendTemplate` or `sendHTML` or `sendRaw` function.  (Internally, the
+function `sendTemplate` is just a wrapper around `sendHTML`, and the
+function `sendHTML` is just a wrapper around `sendRaw`.)  It is
 recommended that you use the `format_html` function to generate HTML or
 HTML template code in the "house style" for administrator CGI scripts.
 
 These send functions are instance methods, so you must have an instance
-of `Yip::Admin` in order to use them.  The only difference between the
-two is that `sendTemplate` will perform template processing.
+of `Yip::Admin` in order to use them.  The only difference between
+`sendTemplate` and `sendHTML` is that the former will perform template
+processing.  `sendHTML` is just a wrapper around `sendRaw` that
+encodes the HTML to UTF-8 and then sends it along with the appropriate
+MIME type for HTML in UTF-8.
 
 By default, the template processor will make all of the standard path
 variables defined in the `cvars` table available as template variables,
@@ -562,18 +569,32 @@ function for further information.
     Send HTML code back to the HTTP client and exit script without returning
     to caller.
 
-    First, the core status headers are written to the client, using the MIME
-    type `text/html; charset=utf-8` for the content type, sending the
-    current HTTP status (200 OK by default, or else whatever it was last
-    changed to with `setStatus`), and specifying `no-store` behavior for
-    caching.
+    This is a wrapper around sendRaw that encodes the given string into
+    UTF-8 and then sends it along with `text/html; charset=utf-8` as the
+    MIME type.
+
+    See the `sendRaw` function for further details on what happens.
+
+- **sendRaw(octets, mime)**
+
+    Send a raw resource back to the HTTP client and exit script without
+    returning to caller.
+
+    `octets` is a raw binary string containing the data to send.  `mime`
+    is the MIME type of the data, which must be a sequence of printing ASCII
+    characters in range \[U+0020, U+007E\].
+
+    First, the core status headers are written to the client, using the
+    given MIME type for the content type, sending the current HTTP status
+    (200 OK by default, or else whatever it was last changed to with
+    `setStatus`), and specifying `no-store` behavior for caching.
 
     Next, there may be a `Set-Cookie` header sent to the HTTP client,
     depending on the current cookie state.  See `cookieDefault` for the
     default behavior, and `cookieLogin` and `cookieCancel` for the other
     behaviors.
 
-    The CGI response head is then finished and the HTML code is sent.
+    The CGI response head is then finished and the resource is sent.
     Finally, the script exits without returning to caller.
 
 # AUTHOR
