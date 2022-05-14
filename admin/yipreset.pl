@@ -276,7 +276,8 @@ if ($request_method eq 'GET') { # ======================================
     # Make sure it matches after encoding into UTF-8 byte string and
     # checking that it isn't longer than 72 bytes (a bcrypt limit)
     my $old_pass = encode(
-                    'UTF-8', $vars->{'oldpass'}, Encode::FB_CROAK);
+                    'UTF-8', $vars->{'oldpass'},
+                    Encode::FB_CROAK | Encode::LEAVE_SRC);
     (length($old_pass) <= 72) or
       send_error($yap, 'Old password does not match');
     (bcrypt_check($old_pass, $yap->getVar('authpswd'))) or
@@ -292,7 +293,8 @@ if ($request_method eq 'GET') { # ======================================
   
   # Encode the password as a binary string in UTF-8 and make sure the
   # result is at most 72 bytes (a bcrypt limit)
-  my $new_pass = encode('UTF-8', $vars->{'newpass'}, Encode::FB_CROAK);
+  my $new_pass = encode('UTF-8', $vars->{'newpass'},
+                    Encode::FB_CROAK | Encode::LEAVE_SRC);
   (length($new_pass) <= 72) or
     send_error($yap,
               'Password may be at most 72 bytes when UTF-8 encoded');
