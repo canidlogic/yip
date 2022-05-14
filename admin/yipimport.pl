@@ -299,7 +299,8 @@ if ($request_method eq 'GET') { # ======================================
             undef,
             $yp->uid,
             $encdate,
-            encode('UTF-8', $yp->body, Encode::FB_CROAK));
+            encode('UTF-8', $yp->body,
+              Encode::FB_CROAK | Encode::LEAVE_SRC));
   
   # Get the postid of the record we just inserted
   my $postid = $dbh->selectrow_arrayref(
