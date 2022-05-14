@@ -591,7 +591,7 @@ sub encode_tval {
   # Handle cases
   if (not ref($val)) {
     # Scalar, return encoded string
-    return encode('UTF-8', $val, Encode::FB_CROAK);
+    return encode('UTF-8', $val, Encode::FB_CROAK | Encode::LEAVE_SRC);
     
   } elsif (ref($val) eq 'ARRAY') {
     # Array reference, make new array
@@ -868,7 +868,7 @@ sub parse_form {
       
       # Decode binary string as UTF-8
       eval {
-        $v = decode('UTF-8', $v, Encode::FB_CROAK);
+        $v = decode('UTF-8', $v, Encode::FB_CROAK | Encode::LEAVE_SRC);
       };
       if ($@) {
         Yip::Admin->bad_request();
@@ -1089,7 +1089,8 @@ required back to the client and exit without returning.
 sub insecure_protocol {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
   binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
-  print encode('UTF-8', $err_insecure, Encode::FB_CROAK);
+  print encode('UTF-8', $err_insecure,
+    Encode::FB_CROAK | Encode::LEAVE_SRC);
   exit;
 }
 
@@ -1103,7 +1104,8 @@ back to the client and exit without returning.
 sub not_authorized {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
   binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
-  print encode('UTF-8', $err_unauth, Encode::FB_CROAK);
+  print encode('UTF-8', $err_unauth,
+    Encode::FB_CROAK | Encode::LEAVE_SRC);
   exit;
 }
 
@@ -1117,7 +1119,8 @@ returning.
 sub invalid_method {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
   binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
-  print encode('UTF-8', $err_method, Encode::FB_CROAK);
+  print encode('UTF-8', $err_method,
+    Encode::FB_CROAK | Encode::LEAVE_SRC);
   exit;
 }
 
@@ -1131,7 +1134,8 @@ returning.
 sub bad_request {
   ($#_ == 0) or die "Wrong number of arguments, stopped";
   binmode(STDOUT, ":raw") or die "Failed to set binary output, stopped";
-  print encode('UTF-8', $err_request, Encode::FB_CROAK);
+  print encode('UTF-8', $err_request,
+    Encode::FB_CROAK | Encode::LEAVE_SRC);
   exit;
 }
 
@@ -1320,7 +1324,8 @@ sub load {
         die "Variable '$k' is invalid, stopped";
       
     } elsif ($k =~ /\Apath/) {
-      $pval = decode('UTF-8', $pval, Encode::FB_CROAK);
+      $pval = decode('UTF-8', $pval,
+        Encode::FB_CROAK | Encode::LEAVE_SRC);
       ($pval =~ /\A\//) or
         die "Variable '$k' is invalid, stopped";
       
@@ -1348,18 +1353,18 @@ sub load {
       (($pval >= 5) and ($pval <= 31)) or
         die "Variable '$k' is invalid, stopped";
     }
-    
+
     # Store the variable in the cache
     $self->{'_cvar'}->{$k} = $pval;
   }
   
   $dbc->finishWork;
-  
+
   # Make sure all configuration variables were loaded
   for my $pname (keys %ch) {
     ($ch{$pname}) or die "Variable '$pname' undefined, stopped";
   }
-  
+
   # Add all the path variables to the template variable hash, with an
   # underscore prefixed to their names; also, encode their values into
   # UTF-8 since the template processor works in binary
@@ -1368,10 +1373,10 @@ sub load {
       $self->{'_tvar'}->{"_$pname"} = encode(
                                         'UTF-8',
                                         $self->{'_cvar'}->{$pname},
-                                        Encode::FB_CROAK);
+                                  Encode::FB_CROAK | Encode::LEAVE_SRC);
     }
   }
-  
+
   # Proceed with cookie check if cookie environment variable
   if (exists $ENV{'HTTP_COOKIE'}) {
     
@@ -1745,7 +1750,8 @@ sub sendTemplate {
   $tcode = "$tcode";
   
   # HTML::Template works with binary strings, so encode UTF-8
-  $tcode = encode('UTF-8', $tcode, Encode::FB_CROAK);
+  $tcode = encode('UTF-8', $tcode,
+            Encode::FB_CROAK | Encode::LEAVE_SRC);
   
   # Open the template
   my $template = HTML::Template->new(
@@ -1760,7 +1766,7 @@ sub sendTemplate {
   my $html = $template->output;
   
   # Get back a Unicode string
-  $html = decode('UTF-8', $html, Encode::FB_CROAK);
+  $html = decode('UTF-8', $html, Encode::FB_CROAK | Encode::LEAVE_SRC);
   
   # Send the HTML
   $self->sendHTML($html);
@@ -1794,7 +1800,7 @@ sub sendHTML {
   $html = "$html";
   
   # Encode HTML into UTF-8
-  $html = encode('UTF-8', $html, Encode::FB_CROAK);
+  $html = encode('UTF-8', $html, Encode::FB_CROAK | Encode::LEAVE_SRC);
   
   # Send the response
   $self->sendRaw($html, 'text/html; charset=utf-8', undef);
