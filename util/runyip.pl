@@ -354,7 +354,8 @@ for my $cr (@cmd) {
     my $rq = $cr->[1];
     if ($rq eq 'body') {
       $raw = $yp->body;
-      $raw = encode('UTF-8', $raw, Encode::FB_CROAK);
+      $raw = encode('UTF-8', $raw,
+                Encode::FB_CROAK | Encode::LEAVE_SRC);
     } else {
       $raw = $yp->attdata(int($rq));
     }
