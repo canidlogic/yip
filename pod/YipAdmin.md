@@ -350,6 +350,18 @@ function for further information.
         
         .btn
         CSS class for submit buttons
+        
+        .rtable
+        For listing script tables
+        
+        .rcl
+        Left-align (for table use)
+        
+        .rcc
+        Center-align (for table use)
+        
+        .rcr
+        Right-align (for table use)
 
     This function will also normalize all line breaks to CR+LF before
     returning the result.
