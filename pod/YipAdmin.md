@@ -362,6 +362,9 @@ function for further information.
         
         .rcr
         Right-align (for table use)
+        
+        .linkbar
+        DIV for link buttons outside table in reports
 
     This function will also normalize all line breaks to CR+LF before
     returning the result.
