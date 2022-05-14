@@ -241,7 +241,8 @@ $postdate = decode_time($postdate, $yap->getVar('epoch'));
 
 # Decode postcode from UTF-8
 #
-$postcode = decode('UTF-8', $postcode, Encode::FB_CROAK);
+$postcode = decode('UTF-8', $postcode,
+              Encode::FB_CROAK | Encode::LEAVE_SRC);
 
 # Create a new MIME message that we will fill in
 #
