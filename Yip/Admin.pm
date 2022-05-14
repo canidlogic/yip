@@ -354,6 +354,7 @@ form {
   padding: 0.5em;
   font-size: larger;
   cursor: pointer;
+  color: black;
 }
 
 .btn:active {
@@ -412,6 +413,11 @@ textarea {
 
 .rcr {
   text-align: right;
+}
+
+.linkbar {
+  margin-top: 2.5em;
+  margin-bottom: 2.5em;
 }
 
     </style>
@@ -1030,6 +1036,9 @@ the stylesheet:
   
   .rcr
   Right-align (for table use)
+  
+  .linkbar
+  DIV for link buttons outside table in reports
 
 This function will also normalize all line breaks to CR+LF before
 returning the result.
