@@ -513,7 +513,8 @@ if ($request_method eq 'GET') { # ======================================
                 $tname);
     if (ref($tq) eq 'ARRAY') {
       $tcache = int($tq->[0]);
-      $tcode  = decode('UTF-8', $tq->[1], Encode::FB_CROAK);
+      $tcode  = decode('UTF-8', $tq->[1],
+                  Encode::FB_CROAK | Encode::LEAVE_SRC);
     }
     
     $dbc->finishWork;
@@ -590,7 +591,8 @@ if ($request_method eq 'GET') { # ======================================
       for my $r (@$qr) {
         my $key = encode_json "$r->[0]";
         my $val = encode_json(
-                    decode('UTF-8', "$r->[1]", Encode::FB_CROAK)
+                    decode('UTF-8', "$r->[1]",
+                      Encode::FB_CROAK | Encode::LEAVE_SRC)
                   );
         
         if ($first_rec) {
@@ -636,7 +638,8 @@ if ($request_method eq 'GET') { # ======================================
       for my $r (@$qr) {
         my $uid  = encode_json "$r->[0]";
         my $name = encode_json(
-                      decode('UTF-8', "$r->[1]", Encode::FB_CROAK)
+                      decode('UTF-8', "$r->[1]",
+                        Encode::FB_CROAK | Encode::LEAVE_SRC)
                     );
         my $tval = encode_json(
                       decode_time($r->[2], $yap->getVar('epoch'))
@@ -708,7 +711,8 @@ if ($request_method eq 'GET') { # ======================================
   my $json;
   if (exists $vars->{'class'}) {
     eval {
-      $json = encode('UTF-8', $vars->{'text'}, Encode::FB_CROAK);
+      $json = encode('UTF-8', $vars->{'text'},
+                Encode::FB_CROAK | Encode::LEAVE_SRC);
       $json = decode_json($json);
     };
     if ($@) {
@@ -740,7 +744,8 @@ if ($request_method eq 'GET') { # ======================================
     
     # Get template text and encode into UTF-8
     my $ttext = "$vars->{'text'}";
-    $ttext = encode('UTF-8', $ttext, Encode::FB_CROAK);
+    $ttext = encode('UTF-8', $ttext,
+                Encode::FB_CROAK | Encode::LEAVE_SRC);
     
     # Open work block to update database
     my $dbh = $dbc->beginWork('rw');
@@ -878,7 +883,8 @@ if ($request_method eq 'GET') { # ======================================
         $dbh->do(
                 'UPDATE vars SET varsval=? WHERE varskey=?',
                 undef,
-                encode('UTF-8', $json->{$pname}, Encode::FB_CROAK),
+                encode('UTF-8', $json->{$pname},
+                    Encode::FB_CROAK | Encode::LEAVE_SRC),
                 $pname);
         
       } else {
@@ -887,7 +893,8 @@ if ($request_method eq 'GET') { # ======================================
                 'INSERT INTO vars(varskey, varsval) VALUES (?,?)',
                 undef,
                 $pname,
-                encode('UTF-8', $json->{$pname}, Encode::FB_CROAK));
+                encode('UTF-8', $json->{$pname},
+                    Encode::FB_CROAK | Encode::LEAVE_SRC));
       }
     }
     
