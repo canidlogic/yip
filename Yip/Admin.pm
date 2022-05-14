@@ -313,6 +313,10 @@ h1 {
   font-family: sans-serif;
 }
 
+h2 {
+  font-family: sans-serif;
+}
+
 #homelink {
   margin-top: 0;
   margin-bottom: 2em;
@@ -378,6 +382,36 @@ textarea {
   padding: 0.5em;
   font-family: monospace;
   background-color: white;
+}
+
+.rtable {
+  background-color: white;
+  border-collapse: collapse;
+}
+
+.rtable th {
+  font-weight: bold;
+  text-align: center;
+  border: thin solid;
+  padding: 0.5em;
+}
+
+.rtable td {
+  font-family: monospace;
+  border: thin solid;
+  padding: 0.5em;
+}
+
+.rcl {
+  text-align: left;
+}
+
+.rcc {
+  text-align: center;
+}
+
+.rcr {
+  text-align: right;
 }
 
     </style>
@@ -984,6 +1018,18 @@ the stylesheet:
   
   .btn
   CSS class for submit buttons
+  
+  .rtable
+  For listing script tables
+  
+  .rcl
+  Left-align (for table use)
+  
+  .rcc
+  Center-align (for table use)
+  
+  .rcr
+  Right-align (for table use)
 
 This function will also normalize all line breaks to CR+LF before
 returning the result.
