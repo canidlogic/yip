@@ -537,7 +537,8 @@ if (($verb eq 'init') or ($verb eq 'config')) {
         die "JSON value for '$pname' must begin with slash, stopped";
       ($pval =~ /\A[\x{20}-\x{7e}\x{a0}-\x{d7ff}\x{e000}-\x{ffff}]+\z/)
         or die "JSON value for '$pname' has invalid codevals, stopped";
-      $pval = encode('UTF-8', $pval, Encode::FB_CROAK);
+      $pval = encode('UTF-8', $pval,
+                Encode::FB_CROAK | Encode::LEAVE_SRC);
       
     } else {
       die "Unexpected";
