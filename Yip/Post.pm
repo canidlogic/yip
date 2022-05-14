@@ -349,8 +349,10 @@ sub loadMIME {
   
   $bh->close;
   
-  $post_code = decode('UTF-8', $post_code, Encode::FB_CROAK);
-  $post_code = encode('UTF-8', $post_code, Encode::FB_CROAK);
+  $post_code = decode('UTF-8', $post_code,
+                  Encode::FB_CROAK | Encode::LEAVE_SRC);
+  $post_code = encode('UTF-8', $post_code,
+                  Encode::FB_CROAK | Encode::LEAVE_SRC);
   
   # Now read all attachments into an attachment hash
   my %post_att;
@@ -549,11 +551,13 @@ sub body {
     ($param =~ /\A[\x{0}-\x{d7ff}\x{e000}-\x{10ffff}]*\z/) or
       die "String contains invalid codepoints, stopped";
     
-    $self->{'_body'} = encode('UTF-8', $param, Encode::FB_CROAK);
+    $self->{'_body'} = encode('UTF-8', $param,
+                        Encode::FB_CROAK | Encode::LEAVE_SRC);
   
   } else {
     # GET property
-    return decode('UTF-8', $self->{'_body'}, Encode::FB_CROAK);
+    return decode('UTF-8', $self->{'_body'},
+              Encode::FB_CROAK | Encode::LEAVE_SRC);
   }
 }
 
