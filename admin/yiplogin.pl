@@ -159,7 +159,8 @@ if ($request_method eq 'GET') { # ======================================
   
   # Make sure password matches after encoding into UTF-8 byte string and
   # checking that it isn't longer than 72 bytes (a bcrypt limit)
-  my $pass = encode('UTF-8', $vars->{'pass'}, Encode::FB_CROAK);
+  my $pass = encode('UTF-8', $vars->{'pass'},
+                Encode::FB_CROAK | Encode::LEAVE_SRC);
   (length($pass) <= 72) or send_error($yap);
   (bcrypt_check($pass, $yap->getVar('authpswd'))) or send_error($yap);
   
