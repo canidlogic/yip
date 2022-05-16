@@ -57,7 +57,7 @@ GET is the only method supported by this script.
 my $archive_template = Yip::Admin->format_html('Archives', q{
     <h1>Archives</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <div class="linkbar">
@@ -105,7 +105,7 @@ my $archive_template = Yip::Admin->format_html('Archives', q{
 my $global_template = Yip::Admin->format_html('Global resources', q{
     <h1>Global resources</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <div class="linkbar">
@@ -156,7 +156,7 @@ my $global_template = Yip::Admin->format_html('Global resources', q{
 my $post_template = Yip::Admin->format_html('Posts', q{
     <h1>Posts</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <div class="linkbar">
@@ -207,7 +207,7 @@ my $post_template = Yip::Admin->format_html('Posts', q{
 my $template_template = Yip::Admin->format_html('Templates', q{
     <h1>Templates</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <h2>New</h2>
@@ -272,7 +272,7 @@ my $template_template = Yip::Admin->format_html('Templates', q{
 my $type_template = Yip::Admin->format_html('Data types', q{
     <h1>Data types</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <div class="linkbar">
@@ -314,7 +314,7 @@ my $type_template = Yip::Admin->format_html('Data types', q{
 my $var_template = Yip::Admin->format_html('Template variables', q{
     <h1>Template variables</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     
     <div class="linkbar">
@@ -353,7 +353,7 @@ my $var_template = Yip::Admin->format_html('Template variables', q{
 my $err_template = Yip::Admin->format_html('Report', q{
     <h1>Report</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Reporting operation failed: 
       <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
