@@ -192,17 +192,20 @@ if ($request_method eq 'GET') { # ======================================
   }
   ($pcount == 1) or send_error($yap, 'Invalid query string');
   
-  # Get class and identifier based on the specific type
+  # Get class and identifier based on the specific type, and also set
+  # the backlink
   my $eclass;
   my $eid;
   
   if (exists $vars->{'type'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=types');
     $eclass = 'type';
     $eid = $vars->{'type'};
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
       send_error($yap, 'Invalid data type name');
     
   } elsif (exists $vars->{'var'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
     $eclass = 'var';
     $eid = $vars->{'var'};
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
@@ -210,12 +213,14 @@ if ($request_method eq 'GET') { # ======================================
     $eid =~ tr/A-Z/a-z/;
     
   } elsif (exists $vars->{'template'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
     $eclass = 'template';
     $eid = $vars->{'template'};
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
       send_error($yap, 'Invalid template name');
     
   } elsif (exists $vars->{'archive'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=archives');
     $eclass = 'archive';
     $eid = $vars->{'archive'};
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
@@ -223,6 +228,7 @@ if ($request_method eq 'GET') { # ======================================
     $eid = int($eid);
     
   } elsif (exists $vars->{'global'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
     $eclass = 'global';
     $eid = $vars->{'global'};
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
@@ -230,6 +236,7 @@ if ($request_method eq 'GET') { # ======================================
     $eid = int($eid);
     
   } elsif (exists $vars->{'post'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
     $eclass = 'post';
     $eid = $vars->{'post'};
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
@@ -269,6 +276,9 @@ if ($request_method eq 'GET') { # ======================================
   
   # Handle the different classes
   if ($eclass eq 'type') { # ===========================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=types');
+    
     # Check eid format
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
       send_error($yap, 'Invalid data type name');
@@ -308,6 +318,9 @@ if ($request_method eq 'GET') { # ======================================
     $dbc->finishWork;
     
   } elsif ($eclass eq 'var') { # =======================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
+    
     # Check eid format
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
       send_error($yap, 'Invalid variable name');
@@ -332,6 +345,9 @@ if ($request_method eq 'GET') { # ======================================
     $dbc->finishWork;
     
   } elsif ($eclass eq 'template') { # ==================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+    
     # Check eid format
     ($eid =~ /\A[A-Za-z0-9_]{1,31}\z/) or
       send_error($yap, 'Invalid template name');
@@ -355,6 +371,9 @@ if ($request_method eq 'GET') { # ======================================
     $dbc->finishWork;
     
   } elsif ($eclass eq 'archive') { # ===================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=archives');
+    
     # Check eid format
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
       send_error($yap, 'Invalid archive unique ID');
@@ -379,6 +398,9 @@ if ($request_method eq 'GET') { # ======================================
     $dbc->finishWork;
     
   } elsif ($eclass eq 'global') { # ====================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
+    
     # Check eid format
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
       send_error($yap, 'Invalid global resource unique ID');
@@ -404,6 +426,9 @@ if ($request_method eq 'GET') { # ======================================
     $dbc->finishWork;
     
   } elsif ($eclass eq 'post') { # ======================================
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
+    
     # Check eid format
     ($eid =~ /\A[1-9][0-9]{5}\z/) or
       send_error($yap, 'Invalid post unique ID');
