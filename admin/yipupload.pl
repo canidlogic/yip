@@ -120,7 +120,7 @@ my $done_template = Yip::Admin->format_html('Upload global resource', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Upload operation successful.</p>
+    <p class="msg">Upload operation successful.</p>
 });
 
 # POST error template.
@@ -135,7 +135,9 @@ my $err_template = Yip::Admin->format_html('Upload global resource', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Upload operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
+    <p class="msg">
+      Upload operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!
+    </p>
 });
 
 # ===============
