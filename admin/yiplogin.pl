@@ -81,8 +81,9 @@ my $get_template = Yip::Admin->format_html('Login', q{
 #
 my $err_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
-    <p>Login failed.  <a href="<TMPL_VAR NAME=_pathlogin>">Try
-    again</a></p>
+    <p class="msg">
+      Login failed.  <a href="<TMPL_VAR NAME=_pathlogin>">Try again</a>
+    </p>
 });
 
 # POST success result template.
