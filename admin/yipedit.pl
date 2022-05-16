@@ -144,7 +144,7 @@ seconds that cached pages remain fresh.
 my $get_template = Yip::Admin->format_html('Editor', q{
     <h1>Editor</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <form
         action="<TMPL_VAR NAME=_pathedit>"
@@ -211,7 +211,7 @@ my $get_template = Yip::Admin->format_html('Editor', q{
 my $done_template = Yip::Admin->format_html('Editor', q{
     <h1>Editor</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Edit operation successful.</p>
 });
@@ -226,7 +226,7 @@ my $done_template = Yip::Admin->format_html('Editor', q{
 my $err_template = Yip::Admin->format_html('Editor', q{
     <h1>Editor</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Edit operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
 });
