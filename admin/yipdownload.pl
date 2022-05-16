@@ -51,7 +51,7 @@ global resource to download.  Only GET requests are supported.
 my $err_template = Yip::Admin->format_html('Download', q{
     <h1>Download</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Download failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
 });
@@ -64,7 +64,7 @@ my $err_template = Yip::Admin->format_html('Download', q{
 my $missing_template = Yip::Admin->format_html('Download', q{
     <h1>Download</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Not found!</p>
 });
