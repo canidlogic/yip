@@ -494,6 +494,9 @@ if ($request_method eq 'GET') { # ======================================
   
   # Handle the different cases
   if (exists $vars->{'template'}) { # ----------------------------------
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+    
     # Get template name and check it
     my $tname = "$vars->{'template'}";
     ($tname =~ /\A[A-Za-z0-9_]{1,31}\z/) or
@@ -531,6 +534,9 @@ if ($request_method eq 'GET') { # ======================================
     $yap->sendTemplate($get_template);
     
   } elsif ($vars->{'class'} eq 'types') { # ----------------------------
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=types');
+    
     # Query all data types
     my $dbh = $dbc->beginWork('r');
     my $qr = $dbh->selectall_arrayref(
@@ -576,6 +582,9 @@ if ($request_method eq 'GET') { # ======================================
     $yap->sendTemplate($get_template);
     
   } elsif ($vars->{'class'} eq 'vars') { # -----------------------------
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
+    
     # Query all template variables
     my $dbh = $dbc->beginWork('r');
     my $qr = $dbh->selectall_arrayref(
@@ -623,6 +632,9 @@ if ($request_method eq 'GET') { # ======================================
     $yap->sendTemplate($get_template);
     
   } elsif ($vars->{'class'} eq 'archives') { # -------------------------
+    # Update backlink
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=archives');
+    
     # Query all template variables
     my $dbh = $dbc->beginWork('r');
     my $qr = $dbh->selectall_arrayref(
@@ -705,6 +717,19 @@ if ($request_method eq 'GET') { # ======================================
   
   # Make sure we have text variable
   (exists $vars->{'text'}) or Yip::Admin->bad_request;
+  
+  # Update backlink
+  if (exists $vars->{'template'}) {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+  } elsif ($vars->{'class'} eq 'types') {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=types');
+  } elsif ($vars->{'class'} eq 'vars') {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
+  } elsif ($vars->{'class'} eq 'archives') {
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=archives');
+  } else {
+    die "Unexpected";
+  }
   
   # If we are editing a class, parse the text as JSON; else, leave the
   # JSON variable undefined
