@@ -123,12 +123,18 @@ my $global_template = Yip::Admin->format_html('Global resources', q{
       <tr>
         <th>UID</th>
         <th>Type</th>
-        <th colspan="2">*</th>
+        <th colspan="3">*</th>
       </tr>
 <TMPL_LOOP NAME=records>
       <tr>
         <td class="rcc"><TMPL_VAR NAME=uid></td>
         <td class="rcl"><TMPL_VAR NAME=tname></td>
+        <td class="rcc">
+          <a
+      href="<TMPL_VAR NAME=pdown>?global=<TMPL_VAR NAME=uid>&preview=1">
+            View
+          </a>
+        </td>
         <td class="rcc">
           <a href="<TMPL_VAR NAME=pdown>?global=<TMPL_VAR NAME=uid>">
             Download
@@ -235,12 +241,18 @@ my $template_template = Yip::Admin->format_html('Templates', q{
       <tr>
         <th>Name</th>
         <th>Cache</th>
-        <th colspan="3">*</th>
+        <th colspan="4">*</th>
       </tr>
 <TMPL_LOOP NAME=records>
       <tr>
         <td class="rcl"><TMPL_VAR NAME=tname></td>
         <td class="rcr"><TMPL_VAR NAME=tcache></td>
+        <td class="rcc">
+          <a
+  href="<TMPL_VAR NAME=pdown>?template=<TMPL_VAR NAME=tname>&preview=1">
+            View
+         </a>
+        </td>
         <td class="rcc">
          <a href="<TMPL_VAR NAME=pdown>?template=<TMPL_VAR NAME=tname>">
             Download
