@@ -88,7 +88,7 @@ my $get_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
 <TMPL_IF NAME=hasauth>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back &laquo;</a></p>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a></p>
     </div>
 </TMPL_IF>
     <form
@@ -133,7 +133,7 @@ my $err_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
 <TMPL_IF NAME=hasauth>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a></p>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Home &laquo;</a></p>
     </div>
 </TMPL_IF>
     <p>
