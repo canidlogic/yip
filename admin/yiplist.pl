@@ -355,8 +355,9 @@ my $err_template = Yip::Admin->format_html('Report', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Reporting operation failed: 
-      <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
+    <p class="msg">
+      Reporting operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!
+    </p>
 });
 
 # ===============
