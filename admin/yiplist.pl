@@ -180,12 +180,17 @@ my $post_template = Yip::Admin->format_html('Posts', q{
       <tr>
         <th>UID</th>
         <th>Date</th>
-        <th colspan="2">*</th>
+        <th colspan="3">*</th>
       </tr>
 <TMPL_LOOP NAME=records>
       <tr>
         <td class="rcc"><TMPL_VAR NAME=uid></td>
         <td class="rcc"><TMPL_VAR NAME=tstamp></td>
+        <td class="rcc">
+       <a href="<TMPL_VAR NAME=pex>?post=<TMPL_VAR NAME=uid>&preview=1">
+            Inspect
+          </a>
+        </td>
         <td class="rcc">
           <a href="<TMPL_VAR NAME=pex>?post=<TMPL_VAR NAME=uid>">
             Export
