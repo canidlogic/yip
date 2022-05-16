@@ -190,6 +190,9 @@ if ($request_method eq 'GET') { # ======================================
   # Check that client is authorized
   $yap->checkCookie;
   
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
+  
   # Get all the data types
   my $dbh = $dbc->beginWork('r');
   my $qr = $dbh->selectall_arrayref(
@@ -223,6 +226,9 @@ if ($request_method eq 'GET') { # ======================================
   
   # Check that client is authorized
   $yap->checkCookie;
+  
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
   
   # Read all the POSTed form uploads
   Yip::Admin->check_upload;
