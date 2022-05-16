@@ -195,6 +195,10 @@ my $yap = Yip::Admin->load($dbc);
 #
 $yap->checkCookie;
 
+# Update backlink
+#
+$yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
+
 # Get query string
 #
 my $qs = '';
