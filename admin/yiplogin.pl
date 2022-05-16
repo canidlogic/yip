@@ -93,7 +93,7 @@ my $err_template = Yip::Admin->format_html('Login', q{
 #
 my $done_template = Yip::Admin->format_html('Login', q{
     <h1>Login</h1>
-    <p>You are now logged in.</p>
+    <p class="msg">You are now logged in.</p>
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Control panel
         &laquo;</a>
