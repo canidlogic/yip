@@ -92,7 +92,7 @@ my $done_template = Yip::Admin->format_html('Import post', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Import operation successful.</p>
+    <p class="msg">Import operation successful.</p>
 });
 
 # POST error template.
@@ -107,7 +107,9 @@ my $err_template = Yip::Admin->format_html('Import post', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
     </div>
-    <p>Import operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
+    <p class="msg">
+      Import operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!
+    </p>
 });
 
 # ===============
