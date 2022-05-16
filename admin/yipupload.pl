@@ -64,7 +64,7 @@ update the database accordingly.
 #
 my $get_template = Yip::Admin->format_html('Upload global resource', q{
     <h1>Upload global resource</h1>
-    <div id="homelink"><a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back
+    <div id="homelink"><a href="<TMPL_VAR NAME=_backlink>">&raquo; Back
       &laquo;</a></div>
     <form
         action="<TMPL_VAR NAME=_pathupload>"
@@ -118,7 +118,7 @@ my $get_template = Yip::Admin->format_html('Upload global resource', q{
 my $done_template = Yip::Admin->format_html('Upload global resource', q{
     <h1>Upload global resource</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Upload operation successful.</p>
 });
@@ -133,7 +133,7 @@ my $done_template = Yip::Admin->format_html('Upload global resource', q{
 my $err_template = Yip::Admin->format_html('Upload global resource', q{
     <h1>Upload global resource</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Upload operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
 });
