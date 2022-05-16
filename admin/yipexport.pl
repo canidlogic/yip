@@ -21,6 +21,7 @@ yipexport.pl - Post export administration CGI script for Yip.
 =head1 SYNOPSIS
 
   /cgi-bin/yipexport.pl?post=814570
+  /cgi-bin/yipexport.pl?post=814570&preview=1
 
 =head1 DESCRIPTION
 
@@ -35,11 +36,72 @@ attachments.  See the C<Yip::Post> module for further details about the
 format of this MIME message.  You can use the C<runyip.pl> utility
 script for working with this MIME message format.
 
+You can provide an optional C<preview> parameter and set it to 1, in
+which case instead of providing an encoded MIME message to download, an
+HTML page is displayed showing the raw contents of the post, along with
+links to view and download any attachments.  If C<preview> is set to 0
+then the script works as normal by generating a MIME message to
+download.  No other values of the optional C<preview> parameter are
+supported.
+
 =cut
 
 # =========
 # Templates
 # =========
+
+# Preview template.
+#
+# This template uses the standard template variables defined by
+# Yip::Admin, as well as the following custom template variables:
+#
+#   att - template array of attachments, each of which has the
+#   properties "aid" (the attachment index) "atype" (the attachment data
+#   type) "pdown" (the download script URL) and "aidf" (the post UID
+#   suffixed with the attachment index)
+#
+#   ptext - the post text
+#
+#   tstamp - the post timestamp
+#
+#   uid - the post UID
+#
+my $preview_template = Yip::Admin->format_html('Export post', q{
+    <h1>Post <TMPL_VAR NAME=uid></h1>
+    <div id="homelink">
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
+    </div>
+    <p class="msg"><TMPL_VAR NAME=tstamp></p>
+    
+    <h2>Body</h2>
+<textarea spellcheck="false" readonly>
+<TMPL_VAR NAME=ptext ESCAPE=HTML></textarea>
+
+    <h2>Attachments</h2>
+    <table class="rtable">
+      <tr>
+        <th>Index</th>
+        <th>Type</th>
+        <th colspan="2">*</th>
+      </tr>
+<TMPL_LOOP NAME=att>
+      <tr>
+        <td class="rcc"><TMPL_VAR NAME=aid></td>
+        <td class="rcl"><TMPL_VAR NAME=atype></td>
+        <td class="rcc">
+   <a href="<TMPL_VAR NAME=pdown>?local=<TMPL_VAR NAME=aidf>&preview=1">
+            View
+          </a>
+        </td>
+        <td class="rcc">
+          <a href="<TMPL_VAR NAME=pdown>?local=<TMPL_VAR NAME=aidf>">
+            Download
+          </a>
+        </td>
+      </tr>
+</TMPL_LOOP>
+    </table>
+});
 
 # Malformed request error template.
 #
@@ -224,6 +286,21 @@ my $uid = $vars->{'post'};
   send_error($yap, 'Invalid unique ID format');
 $uid = int($uid);
 
+# Determine whether we are in preview mode
+#
+my $is_preview = 0;
+if (exists $vars->{'preview'}) {
+  if ($vars->{'preview'} =~ /\A0\z/) {
+    $is_preview = 0;
+  
+  } elsif ($vars->{'preview'} =~ /\A1\z/) {
+    $is_preview = 1;
+    
+  } else {
+    send_error($yap, 'Invalid preview mode');
+  }
+}
+
 # Begin transaction
 #
 my $dbh = $dbc->beginWork('r');
@@ -275,17 +352,42 @@ if (ref($qr) eq 'ARRAY') {
   }
 }
 
-# Encode everything into a MIME message
-#
-my $mime = $yp->encodeMIME;
-
 # End transaction
 #
 $dbc->finishWork;
 
-# Send the message to client as generic binary data
+# Respond in appropriate format
 #
-$yap->sendRaw($mime, 'application/octet-stream', "post-$uid");
+if ($is_preview) {
+  # Preview mode, so set custom parameters
+  $yap->customParam('ptext' , $yp->body);
+  $yap->customParam('tstamp', $yp->date);
+  $yap->customParam('uid'   , $yp->uid );
+
+  # Build the attachment array
+  my @ata;
+  for my $ati ($yp->attlist) {
+    push @ata, ({
+      aid   => $ati,
+      atype => $yp->atttype($ati),
+      pdown => $yap->getVar('pathdownload'),
+      aidf  => $yp->uid . "$ati"
+    });
+  }
+
+  # Set the attachment array as custom parameter
+  $yap->customParam('att', \@ata);
+
+  # Generate the preview page for the client
+  $yap->sendTemplate($preview_template);
+
+} else {
+  # Not in preview mode -- encode everything into a MIME message
+  my $mime = $yp->encodeMIME;
+  
+  # Send the message to client as generic binary data
+  $yap->sendRaw($mime, 'application/octet-stream', "post-$uid");
+}
 
 =head1 AUTHOR
 
