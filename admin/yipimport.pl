@@ -63,7 +63,7 @@ with a matching UID already exists, a new post will be added.
 #
 my $get_template = Yip::Admin->format_html('Import post', q{
     <h1>Import post</h1>
-    <div id="homelink"><a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back
+    <div id="homelink"><a href="<TMPL_VAR NAME=_backlink>">&raquo; Back
       &laquo;</a></div>
     <form
         action="<TMPL_VAR NAME=_pathimport>"
@@ -90,7 +90,7 @@ my $get_template = Yip::Admin->format_html('Import post', q{
 my $done_template = Yip::Admin->format_html('Import post', q{
     <h1>Import post</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Import operation successful.</p>
 });
