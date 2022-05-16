@@ -242,6 +242,9 @@ if ($request_method eq 'GET') { # ======================================
   # Check that client is authorized
   $yap->checkCookie;
   
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
+  
   # Send the form template to client
   $yap->sendTemplate($get_template);
   
@@ -253,6 +256,9 @@ if ($request_method eq 'GET') { # ======================================
   
   # Check that client is authorized
   $yap->checkCookie;
+  
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
   
   # Read all the POSTed form uploads
   Yip::Admin->check_upload;
