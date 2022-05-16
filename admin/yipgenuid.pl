@@ -170,7 +170,7 @@ my $vars = Yip::Admin->parse_form($qs);
   send_error($yap, 'Query string missing table parameter');
 
 # Determine the name of the table, the name of the primary key field,
-# and the name of the UID field
+# and the name of the UID field, as well as setting the backlink
 #
 my $table_name;
 my $primary_col;
@@ -180,16 +180,19 @@ if ($vars->{'table'} eq 'post') { # ====================================
   $table_name  = 'post';
   $primary_col = 'postid';
   $uid_col     = 'postuid';
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
   
 } elsif ($vars->{'table'} eq 'global') { # =============================
   $table_name  = 'gres';
   $primary_col = 'gresid';
   $uid_col     = 'gresuid';
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
   
 } elsif ($vars->{'table'} eq 'archive') { # ============================
   $table_name  = 'parc';
   $primary_col = 'parcid';
   $uid_col     = 'parcuid';
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=archives');
   
 } else { # =============================================================
   send_error($yap, "Unrecognized table: '$vars->{'table'}'");
