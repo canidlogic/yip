@@ -370,7 +370,10 @@ function for further information.
         Right-align (for table use)
         
         .linkbar
-        DIV for link buttons outside table in reports
+        DIV for link buttons outside table in reports and in control panel
+        
+        .linkhead
+        Like .linkbar except with more top margin
 
     This function will also normalize all line breaks to CR+LF before
     returning the result.
