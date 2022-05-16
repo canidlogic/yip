@@ -59,7 +59,7 @@ the database.
 #
 my $get_template = Yip::Admin->format_html('Drop entity', q{
     <h1>Drop entity</h1>
-    <div id="homelink"><a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back
+    <div id="homelink"><a href="<TMPL_VAR NAME=_backlink>">&raquo; Back
       &laquo;</a></div>
     <form
         action="<TMPL_VAR NAME=_pathdrop>"
@@ -102,7 +102,7 @@ my $get_template = Yip::Admin->format_html('Drop entity', q{
 my $done_template = Yip::Admin->format_html('Drop entity', q{
     <h1>Drop entity</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Drop operation successful.</p>
 });
@@ -117,7 +117,7 @@ my $done_template = Yip::Admin->format_html('Drop entity', q{
 my $err_template = Yip::Admin->format_html('Drop entity', q{
     <h1>Drop entity</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Drop operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
 });
