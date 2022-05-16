@@ -9,40 +9,45 @@ use YipConfig;
 
 =head1 NAME
 
-yipdownload.pl - Global resource and template download administration
-CGI script for Yip.
+yipdownload.pl - Global resource, attachment, and template download
+administration CGI script for Yip.
 
 =head1 SYNOPSIS
 
   /cgi-bin/yipdownload.pl?template=example
   /cgi-bin/yipdownload.pl?global=907514
+  /cgi-bin/yipdownload.pl?local=8519841009
+  
   /cgi-bin/yipdownload.pl?template=example&preview=1
   /cgi-bin/yipdownload.pl?global=907514&preview=1
+  /cgi-bin/yipdownload.pl?local=8519841009&preview=1
 
 =head1 DESCRIPTION
 
 This is a CGI script for administration of Yip.  This particular CGI
-script serves template text files and global resources directly to the
-client, allowing for global resources and templates to be viewed and
-downloaded.  The client must have an authorization cookie to use this
-script.
+script serves template text files, global resources, and attachment
+files directly to the client, allowing for global resources,
+attachments, and templates to be viewed and downloaded.  The client must
+have an authorization cookie to use this script.
 
-B<Note:> Global resources are served by this script with caching
-disabled so that the client always gets the current copy.  Also,
-resources are served with attachment disposition intended for
-downloading.  This is I<not> the script to use for serving global
-resources to the public.
+B<Note:> Global resources and attachment files are served by this script
+with caching disabled so that the client always gets the current copy.
+Also, resources and attachments are served with attachment disposition
+intended for downloading.  This is I<not> the script to use for serving
+global resources or attachments to the public.
 
 The GET request takes either a C<template> variable that names the
 template to download, or a C<global> variable that gives the UID of the
-global resource to download.  Only GET requests are supported.
+global resource to download, or a C<local> variable that takes ten
+digits, the first six being the UID of a post and the last four being
+the attachment index to fetch.  Only GET requests are supported.
 
 If the optional C<preview> parameter is provided and set to 1, then
 instead of serving with attachment disposition, the resource is served
 with the default inline disposition so that the browser will attempt to
-show the resource or template directly.  Providing C<preview> with it
-set to 0 is equivalent to not providing the parameter at all.  No other
-value is valid.
+show the resource or attachment or template directly.  Providing
+C<preview> with it set to 0 is equivalent to not providing the parameter
+at all.  No other value is valid.
 
 =cut
 
@@ -168,16 +173,43 @@ if (defined $ENV{'QUERY_STRING'}) {
 #
 my $vars = Yip::Admin->parse_form($qs);
 
-# Make sure we didn't get both template and global
+# Make sure we got exactly one of template, global, and local
 #
-((not exists $vars->{'template'}) or (not exists $vars->{'global'})) or
-  send_error($yap, 
-    'Do not specify both template and global at same time');
+my $qsc = 0;
+for my $qsn ('template', 'global', 'local') {
+  if (exists $vars->{$qsn}) {
+    $qsc++;
+  }
+}
+($qsc == 1) or
+  send_error($yap, 'Invalid script invocation');
 
-# Make sure we got either template or global
+# Set backlink
 #
-((exists $vars->{'template'}) or (exists $vars->{'global'})) or
-  send_error($yap, 'Specify either template or global');
+if (exists $vars->{'template'}) {
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+
+} elsif (exists $vars->{'global'}) {
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
+
+} elsif (exists $vars->{'local'}) {
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=posts');
+  
+} else {
+  die "Unexpected";
+}
+
+# If local parameter is present and it has the correct format, update
+# the backlink to lead to the post preview, else leave it at its current
+# setting of leading back to the post report
+#
+if (exists $vars->{'local'}) {
+  if ($vars->{'local'} =~ /\A[1-9][0-9]{5}[1-9][0-9]{3}\z/) {
+    my $bli = substr($vars->{'local'}, 0, 6);
+    $yap->setBacklink($yap->getVar('pathexport')
+                        . "?post=$bli&preview=1");
+  }
+}
 
 # Check for preview mode
 #
@@ -190,13 +222,6 @@ if (exists $vars->{'preview'}) {
     $is_preview = 1;
   
   } else {
-    if (exists $vars->{'template'}) {
-      $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
-    } elsif (exists $vars->{'global'}) {
-      $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
-    } else {
-      die "Unexpected";
-    }
     send_error($yap, 'Invalid preview mode');
   }
 }
@@ -204,9 +229,6 @@ if (exists $vars->{'preview'}) {
 # Different handling depending on type
 #
 if (exists $vars->{'template'}) { # ====================================
-  # Update backlink
-  $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
-  
   # Get the template name and check format
   my $tname = $vars->{'template'};
   ($tname =~ /\A[A-Za-z0-9_]{1,31}\z/) or
@@ -236,9 +258,6 @@ if (exists $vars->{'template'}) { # ====================================
   $yap->sendRaw($qr, 'text/plain; charset=utf-8', $disp);
   
 } elsif (exists $vars->{'global'}) { # =================================
-  # Update backlink
-  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
-  
   # Get the UID and check format
   my $uid = $vars->{'global'};
   ($uid =~ /\A[1-9][0-9]{5}\z/) or
@@ -250,19 +269,15 @@ if (exists $vars->{'template'}) { # ====================================
   
   # Look up the resource and get its MIME type
   my $qr = $dbh->selectrow_arrayref(
-                  'SELECT rtypeid, gresraw FROM gres WHERE gresuid=?',
+                  'SELECT rtypemime, gresraw '
+                  . 'FROM gres '
+                  . 'INNER JOIN rtype ON rtype.rtypeid=gres.rtypeid '
+                  . 'WHERE gresuid=?',
                   undef,
                   $uid);
   (ref($qr) eq 'ARRAY') or send_missing($yap);
   my $ct  = $qr->[0];
   my $raw = $qr->[1];
-  
-  $qr = $dbh->selectrow_arrayref(
-              'SELECT rtypemime FROM rtype WHERE rtypeid=?',
-              undef,
-              $ct);
-  (ref($qr) eq 'ARRAY') or die "Foreign key missing, stopped";
-  $ct = $qr->[0];
   
   # Finish transaction
   $dbc->finishWork;
@@ -275,7 +290,42 @@ if (exists $vars->{'template'}) { # ====================================
   
   # Send the resource back to client with appropriate MIME type
   $yap->sendRaw($raw, $ct, $disp);
+
+} elsif (exists $vars->{'local'}) { # =================================
+  # Parse the local code
+  ($vars->{'local'} =~ /\A([1-9][0-9]{5})([1-9][0-9]{3})\z/) or
+    send_error($yap, 'Invalid attachment local code');
+  my $uid = int($1);
+  my $ati = int($2);
   
+  # Begin transaction
+  my $dbh = $dbc->beginWork('r');
+  
+  # Look up the attachment and get its MIME type
+  my $qr = $dbh->selectrow_arrayref(
+                  'SELECT rtypemime, attraw '
+                  . 'FROM att '
+                  . 'INNER JOIN rtype ON rtype.rtypeid=att.rtypeid '
+                  . 'INNER JOIN post ON post.postid=att.postid '
+                  . 'WHERE postuid=? AND attidx=?',
+                  undef,
+                  $uid, $ati);
+  (ref($qr) eq 'ARRAY') or send_missing($yap);
+  my $ct  = $qr->[0];
+  my $raw = $qr->[1];
+  
+  # Finish transaction
+  $dbc->finishWork;
+  
+  # Determine disposition parameter
+  my $disp = undef;
+  if (not $is_preview) {
+    $disp = "att-$uid-$ati";
+  }
+  
+  # Send the resource back to client with appropriate MIME type
+  $yap->sendRaw($raw, $ct, $disp);
+
 } else { # =============================================================
   die "Unexpected";
 }
