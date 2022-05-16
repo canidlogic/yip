@@ -66,6 +66,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
     $yap->cookieCancel;
     $yap->cookieDefault;
     
+    # Change the back link
+    $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
+    
     # Add custom template parameter
     $yap->customParam('example', 'value');
     
@@ -184,10 +187,13 @@ MIME type for HTML in UTF-8.
 
 By default, the template processor will make all of the standard path
 variables defined in the `cvars` table available as template variables,
-except that each name is prefixed with an underscore.  If you need
-additional template variables, you can define them with the
-`customParam` function, provided that none of the custom names begin
-with an underscore.
+except that each name is prefixed with an underscore.  Also, the
+template processor defines a special `_backlink` variable that stores a
+URL used for back buttons, which is controlled by the object state (see
+`setBacklink` for further information).  If you need additional
+template variables, you can define them with the `customParam`
+function, provided that none of the custom names begin with an
+underscore.
 
 By default, the send functions will use HTTP status 200 'OK'.  If you
 want to set a different status, use the `setStatus` function.
@@ -523,6 +529,13 @@ function for further information.
     secret key _before_ the logout happened, the "refreshed" cookie will
     not in fact be valid since the secret key has since changed.  This is
     the appropriate behavior.
+
+- **setBacklink(url)**
+
+    Set the value of the \_backlink template parameter.  By default, this is
+    set to be equal to \_pathadmin, but you can change this by calling this
+    function.  `url` may include Unicode codepoints, and may have any
+    scalar value.
 
 - **customParam(name, value)**
 
