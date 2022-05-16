@@ -5,6 +5,7 @@ yipexport.pl - Post export administration CGI script for Yip.
 # SYNOPSIS
 
     /cgi-bin/yipexport.pl?post=814570
+    /cgi-bin/yipexport.pl?post=814570&preview=1
 
 # DESCRIPTION
 
@@ -18,6 +19,14 @@ an encoded MIME message that contains the exported post and all its
 attachments.  See the `Yip::Post` module for further details about the
 format of this MIME message.  You can use the `runyip.pl` utility
 script for working with this MIME message format.
+
+You can provide an optional `preview` parameter and set it to 1, in
+which case instead of providing an encoded MIME message to download, an
+HTML page is displayed showing the raw contents of the post, along with
+links to view and download any attachments.  If `preview` is set to 0
+then the script works as normal by generating a MIME message to
+download.  No other values of the optional `preview` parameter are
+supported.
 
 # AUTHOR
 
