@@ -51,7 +51,7 @@ script for working with this MIME message format.
 my $err_template = Yip::Admin->format_html('Export post', q{
     <h1>Export post</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Export operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
 });
@@ -64,7 +64,7 @@ my $err_template = Yip::Admin->format_html('Export post', q{
 my $missing_template = Yip::Admin->format_html('Export post', q{
     <h1>Export post</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Not found!</p>
 });
