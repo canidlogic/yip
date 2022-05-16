@@ -363,6 +363,7 @@ form {
   font-size: larger;
   cursor: pointer;
   color: black;
+  background-color: lightsalmon;
 }
 
 .btn:active {
