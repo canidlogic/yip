@@ -16,6 +16,8 @@ CGI script for Yip.
 
   /cgi-bin/yipdownload.pl?template=example
   /cgi-bin/yipdownload.pl?global=907514
+  /cgi-bin/yipdownload.pl?template=example&preview=1
+  /cgi-bin/yipdownload.pl?global=907514&preview=1
 
 =head1 DESCRIPTION
 
@@ -34,6 +36,13 @@ resources to the public.
 The GET request takes either a C<template> variable that names the
 template to download, or a C<global> variable that gives the UID of the
 global resource to download.  Only GET requests are supported.
+
+If the optional C<preview> parameter is provided and set to 1, then
+instead of serving with attachment disposition, the resource is served
+with the default inline disposition so that the browser will attempt to
+show the resource or template directly.  Providing C<preview> with it
+set to 0 is equivalent to not providing the parameter at all.  No other
+value is valid.
 
 =cut
 
@@ -170,6 +179,28 @@ my $vars = Yip::Admin->parse_form($qs);
 ((exists $vars->{'template'}) or (exists $vars->{'global'})) or
   send_error($yap, 'Specify either template or global');
 
+# Check for preview mode
+#
+my $is_preview = 0;
+if (exists $vars->{'preview'}) {
+  if ($vars->{'preview'} =~ /\A0\z/) {
+    $is_preview = 0;
+  
+  } elsif ($vars->{'preview'} =~ /\A1\z/) {
+    $is_preview = 1;
+  
+  } else {
+    if (exists $vars->{'template'}) {
+      $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+    } elsif (exists $vars->{'global'}) {
+      $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
+    } else {
+      die "Unexpected";
+    }
+    send_error($yap, 'Invalid preview mode');
+  }
+}
+
 # Different handling depending on type
 #
 if (exists $vars->{'template'}) { # ====================================
@@ -195,8 +226,14 @@ if (exists $vars->{'template'}) { # ====================================
   # Finish transaction
   $dbh = $dbc->finishWork;
   
+  # Determine disposition parameter
+  my $disp = undef;
+  if (not $is_preview) {
+    $disp = "$tname";
+  }
+  
   # Send the template code back to client as plain text
-  $yap->sendRaw($qr, 'text/plain; charset=utf-8', "$tname");
+  $yap->sendRaw($qr, 'text/plain; charset=utf-8', $disp);
   
 } elsif (exists $vars->{'global'}) { # =================================
   # Update backlink
@@ -230,8 +267,14 @@ if (exists $vars->{'template'}) { # ====================================
   # Finish transaction
   $dbc->finishWork;
   
+  # Determine disposition parameter
+  my $disp = undef;
+  if (not $is_preview) {
+    $disp = "global-$uid";
+  }
+  
   # Send the resource back to client with appropriate MIME type
-  $yap->sendRaw($raw, $ct, "global-$uid");
+  $yap->sendRaw($raw, $ct, $disp);
   
 } else { # =============================================================
   die "Unexpected";
