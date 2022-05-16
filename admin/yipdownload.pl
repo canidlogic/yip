@@ -53,7 +53,9 @@ my $err_template = Yip::Admin->format_html('Download', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Download failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
+    <p class="msg">
+      Download failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!
+    </p>
 });
 
 # Missing resource error template.
@@ -66,7 +68,9 @@ my $missing_template = Yip::Admin->format_html('Download', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Not found!</p>
+    <p class="msg">
+      Not found!
+    </p>
 });
 
 # ===============
