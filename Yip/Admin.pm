@@ -208,10 +208,13 @@ MIME type for HTML in UTF-8.
 
 By default, the template processor will make all of the standard path
 variables defined in the C<cvars> table available as template variables,
-except that each name is prefixed with an underscore.  If you need
-additional template variables, you can define them with the
-C<customParam> function, provided that none of the custom names begin
-with an underscore.
+except that each name is prefixed with an underscore.  Also, the
+template processor defines a special C<_backlink> variable that stores a
+URL used for back buttons, which is controlled by the object state (see
+C<setBacklink> for further information).  If you need additional
+template variables, you can define them with the C<customParam>
+function, provided that none of the custom names begin with an
+underscore.
 
 By default, the send functions will use HTTP status 200 'OK'.  If you
 want to set a different status, use the C<setStatus> function.
@@ -1241,9 +1244,11 @@ sub load {
   
   # The '_tvar' property is a reference to a hash that stores template
   # variables; it will be initialized with all the path variables, with
-  # an underscore prefixed to each of the path variable names; clients
-  # can later add their own custom parameters provided that those names
-  # don't begin with an underscore
+  # an underscore prefixed to each of the path variable names, and also
+  # _backlink will be defined with the initial value the same as
+  # _pathadmin; clients can later add their own custom parameters
+  # provided that those names don't begin with an underscore, and they
+  # can adjust the backlink
   $self->{'_tvar'} = { };
   
   # The '_status' property is a reference to an array of two values, the
@@ -1376,6 +1381,10 @@ sub load {
                                   Encode::FB_CROAK | Encode::LEAVE_SRC);
     }
   }
+  
+  # Define the _backlink in the template variable hash, and initialize
+  # it to _pathadmin
+  $self->{'_tvar'}->{'_backlink'} = $self->{'_tvar'}->{'_pathadmin'};
 
   # Proceed with cookie check if cookie environment variable
   if (exists $ENV{'HTTP_COOKIE'}) {
@@ -1613,6 +1622,35 @@ sub cookieDefault {
   
   # Set state
   $self->{'_cookie'} = 0;
+}
+
+=item B<setBacklink(url)>
+
+Set the value of the _backlink template parameter.  By default, this is
+set to be equal to _pathadmin, but you can change this by calling this
+function.  C<url> may include Unicode codepoints, and may have any
+scalar value.
+
+=cut
+
+sub setBacklink {
+  # Check parameter count
+  ($#_ == 1) or die "Wrong number of parameters, stopped";
+  
+  # Get self and parameter
+  my $self = shift;
+  (ref($self) and $self->isa(__PACKAGE__)) or
+    die "Wrong parameter type, stopped";
+  
+  my $url = shift;
+  (not ref($url)) or die "Wrong parameter type, stopped";
+  $url = "$url";
+  
+  # Encode in-place into UTF-8 binary
+  $url = encode('UTF-8', $url, Encode::FB_CROAK);
+  
+  # Update parameter value
+  $self->{'_tvar'}->{'_backlink'} = $url;
 }
 
 =item B<customParam(name, value)>
