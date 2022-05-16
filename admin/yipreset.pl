@@ -136,11 +136,13 @@ my $err_template = Yip::Admin->format_html('Password reset', q{
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Home &laquo;</a></p>
     </div>
 </TMPL_IF>
-    <p>
+    <p class="msg">
       Password reset failed.
       <TMPL_VAR NAME=errmsg ESCAPE=HTML>!
     </p>
-    <p><a href="<TMPL_VAR NAME=_pathreset>">Try again</a></p>
+    <p class="msg">
+      <a href="<TMPL_VAR NAME=_pathreset>">Try again</a>
+    </p>
   </body>
 </html>
 });
@@ -152,8 +154,8 @@ my $err_template = Yip::Admin->format_html('Password reset', q{
 #
 my $done_template = Yip::Admin->format_html('Password reset', q{
     <h1>Password reset</h1>
-    <p>Password has been reset.</p>
-    <p><a href="<TMPL_VAR NAME=_pathlogin>">Log in</a></p>
+    <p class="msg">Password has been reset.</p>
+    <p class="msg"><a href="<TMPL_VAR NAME=_pathlogin>">Log in</a></p>
 });
 
 # ===============
