@@ -51,12 +51,19 @@ client's key will be canceled.
 #
 my $get_template = Yip::Admin->format_html('Logout', q{
     <h1>Logout</h1>
+    <div id="homelink">
+      <a href="<TMPL_VAR NAME=_backlink>">
+        &raquo; Back &laquo;
+      </a>
+    </div>
     <form
         action="<TMPL_VAR NAME=_pathlogout>"
         method="post"
         enctype="application/x-www-form-urlencoded">
       <input type="hidden" name="logout" value="1">
-      <p><input type="submit" value="Log out" class="btn"></p>
+      <div class="linkbar" style="text-align: center;">
+        <input type="submit" value="Log out" class="btn">
+      </div>
     </form>
 });
 
@@ -64,7 +71,7 @@ my $get_template = Yip::Admin->format_html('Logout', q{
 #
 my $done_page = Yip::Admin->format_html('Logout', q{
     <h1>Logout</h1>
-    <p>You are now logged out.</p>
+    <p class="msg">You are now logged out.</p>
 });
 
 # ==============
