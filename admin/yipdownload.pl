@@ -169,6 +169,9 @@ my $vars = Yip::Admin->parse_form($qs);
 # Different handling depending on type
 #
 if (exists $vars->{'template'}) { # ====================================
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=templates');
+  
   # Get the template name and check format
   my $tname = $vars->{'template'};
   ($tname =~ /\A[A-Za-z0-9_]{1,31}\z/) or
@@ -192,6 +195,9 @@ if (exists $vars->{'template'}) { # ====================================
   $yap->sendRaw($qr, 'text/plain; charset=utf-8', "$tname");
   
 } elsif (exists $vars->{'global'}) { # =================================
+  # Update backlink
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=globals');
+  
   # Get the UID and check format
   my $uid = $vars->{'global'};
   ($uid =~ /\A[1-9][0-9]{5}\z/) or
