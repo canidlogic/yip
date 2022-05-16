@@ -434,6 +434,10 @@ textarea {
   margin-bottom: 2.5em;
 }
 
+.msg {
+  text-align: center;
+}
+
     </style>
   </head>
   <body>};
@@ -451,7 +455,9 @@ my $err_insecure =
   . "\r\n"
   . Yip::Admin->format_html('403 Forbidden', q{
     <h1>403 Forbidden</h1>
-    <p>You must use HTTPS to access this script.</p>
+    <p class="msg">
+      You must use HTTPS to access this script.
+    </p>
 });
 
 # The complete response message sent if client is not authorized
@@ -463,7 +469,9 @@ my $err_unauth =
   . "\r\n"
   . Yip::Admin->format_html('403 Forbidden', q{
     <h1>403 Forbidden</h1>
-    <p>You must be logged in to use this script.</p>
+    <p class="msg">
+      You must be logged in to use this script.
+    </p>
 });
 
 # Standard response sent when client indicates method not supported
@@ -475,7 +483,9 @@ my $err_method =
   . "\r\n"
   . Yip::Admin->format_html('405 Method Not Allowed', q{
     <h1>405 Method Not Allowed</h1>
-    <p>Unsupported HTTP request method was used.</p>
+    <p class="msg">
+      Unsupported HTTP request method was used.
+    </p>
 });
 
 # Standard response sent when client didn't send a valid POST request
@@ -487,7 +497,9 @@ my $err_request =
   . "\r\n"
   . Yip::Admin->format_html('400 Bad Request', q{
     <h1>400 Bad Request</h1>
-    <p>Client did not send a valid request.</p>
+    <p class="msg">
+      Client did not send a valid request.
+    </p>
 });
 
 # ===============
@@ -1056,6 +1068,9 @@ the stylesheet:
   
   .linkhead
   Like .linkbar except with more top margin
+  
+  .msg
+  Centered text for message screens.
 
 This function will also normalize all line breaks to CR+LF before
 returning the result.
