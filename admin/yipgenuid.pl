@@ -60,7 +60,7 @@ my $MAX_RETRY = 256;
 #
 my $get_template = Yip::Admin->format_html('Generate unique ID', q{
     <h1>Generate unique ID</h1>
-    <div id="homelink"><a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Back
+    <div id="homelink"><a href="<TMPL_VAR NAME=_backlink>">&raquo; Back
       &laquo;</a></div>
     <form>
       <div class="ctlbox">
@@ -96,7 +96,7 @@ my $get_template = Yip::Admin->format_html('Generate unique ID', q{
 my $err_template = Yip::Admin->format_html('Generate unique ID', q{
     <h1>Generate unique ID</h1>
     <div id="homelink">
-      <a href="<TMPL_VAR NAME=_pathadmin>">&raquo; Home &laquo;</a>
+      <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
     <p>Generation operation failed:
       <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
