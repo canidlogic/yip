@@ -999,7 +999,8 @@ if ($request_method eq 'GET') { # ======================================
     for my $pname (keys %$json) {
       # Get the fields in encoded format
       my $uid   = int($pname);
-      my $aname = $json->{$pname}->[0];
+      my $aname = encode('UTF-8', $json->{$pname}->[0],
+                          Encode::FB_CROAK | Encode::LEAVE_SRC);
       my $adate = encode_time(
                     $json->{$pname}->[1], $yap->getVar('epoch'));
       
