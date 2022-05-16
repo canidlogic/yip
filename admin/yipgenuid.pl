@@ -98,8 +98,9 @@ my $err_template = Yip::Admin->format_html('Generate unique ID', q{
     <div id="homelink">
       <a href="<TMPL_VAR NAME=_backlink>">&raquo; Back &laquo;</a>
     </div>
-    <p>Generation operation failed:
-      <TMPL_VAR NAME=reason ESCAPE=HTML>!</p>
+    <p class="msg">
+      Generation operation failed: <TMPL_VAR NAME=reason ESCAPE=HTML>!
+    </p>
 });
 
 # ===============
