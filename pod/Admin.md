@@ -374,6 +374,9 @@ function for further information.
         
         .linkhead
         Like .linkbar except with more top margin
+        
+        .msg
+        Centered text for message screens.
 
     This function will also normalize all line breaks to CR+LF before
     returning the result.
