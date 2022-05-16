@@ -618,6 +618,8 @@ if ($request_method eq 'GET') { # ======================================
     
     # Finish building the JSON text
     $json = $json . "\n}\n";
+    $json = decode('UTF-8', $json,
+              Encode::FB_CROAK | Encode::LEAVE_SRC);
     
     # Finish database work
     $dbc->finishWork;
@@ -671,6 +673,8 @@ if ($request_method eq 'GET') { # ======================================
     
     # Finish building the JSON text
     $json = $json . "\n}\n";
+    $json = decode('UTF-8', $json,
+              Encode::FB_CROAK | Encode::LEAVE_SRC);
     
     # Finish database work
     $dbc->finishWork;
