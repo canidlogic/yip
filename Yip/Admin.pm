@@ -77,6 +77,9 @@ Yip::Admin - Common utilities for administration CGI scripts.
   $yap->cookieCancel;
   $yap->cookieDefault;
   
+  # Change the back link
+  $yap->setBacklink($yap->getVar('pathlist') . '?report=vars');
+  
   # Add custom template parameter
   $yap->customParam('example', 'value');
   
