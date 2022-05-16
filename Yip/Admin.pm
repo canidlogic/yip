@@ -317,6 +317,7 @@ body {
 
 h1 {
   font-family: sans-serif;
+  text-align: center;
 }
 
 h2 {
@@ -327,6 +328,7 @@ h2 {
   margin-top: 0;
   margin-bottom: 2em;
   font-size: larger;
+  text-align: center;
 }
 
 form {
@@ -423,6 +425,11 @@ textarea {
 
 .linkbar {
   margin-top: 2.5em;
+  margin-bottom: 2.5em;
+}
+
+.linkhead {
+  margin-top: 4em;
   margin-bottom: 2.5em;
 }
 
@@ -1044,7 +1051,10 @@ the stylesheet:
   Right-align (for table use)
   
   .linkbar
-  DIV for link buttons outside table in reports
+  DIV for link buttons outside table in reports and in control panel
+  
+  .linkhead
+  Like .linkbar except with more top margin
 
 This function will also normalize all line breaks to CR+LF before
 returning the result.
