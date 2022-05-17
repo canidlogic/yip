@@ -349,7 +349,7 @@ my $var_template = Yip::Admin->format_html('Template variables', q{
 <TMPL_LOOP NAME=records>
       <tr>
         <td class="rcl"><TMPL_VAR NAME=key></td>
-        <td class="rcl"><TMPL_VAR NAME=val ESCAPE=HTML></td>
+        <td class="rcll"><TMPL_VAR NAME=val ESCAPE=HTML></td>
         <td class="rcc">
           <a href="<TMPL_VAR NAME=pdrop>?var=<TMPL_VAR NAME=vkey>">
             Drop
