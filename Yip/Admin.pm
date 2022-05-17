@@ -790,8 +790,16 @@ sub read_client {
     binmode(STDIN, ":raw") or die "Failed to set binary input, stopped";
     
     # Read the data
-    (sysread(STDIN, $data, $clen) == $clen) or
-      die "Failed to read POSTed data, stopped";
+    my $read_count = 0;
+    while ($read_count < $clen) {
+      my $new_read = sysread(
+                        STDIN,
+                        $data,
+                        ($clen - $read_count),
+                        $read_count);
+      ($new_read > 0) or die "Failed to read POSTed data, stopped";
+      $read_count = $read_count + $new_read;
+    }
   }
   
   # Return the data or empty string
