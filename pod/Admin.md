@@ -363,6 +363,9 @@ function for further information.
         .rcl
         Left-align (for table use)
         
+        .rcll
+        Like .rcl except break overflowing content anywhere
+        
         .rcc
         Center-align (for table use)
         
