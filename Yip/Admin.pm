@@ -416,6 +416,11 @@ textarea {
   text-align: left;
 }
 
+.rcll {
+  text-align: left;
+  overflow-wrap:  anywhere;
+}
+
 .rcc {
   text-align: center;
 }
@@ -1064,6 +1069,9 @@ the stylesheet:
   
   .rcl
   Left-align (for table use)
+  
+  .rcll
+  Like .rcl except break overflowing content anywhere
   
   .rcc
   Center-align (for table use)
