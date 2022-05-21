@@ -66,6 +66,16 @@ following changes:
     statements.  Templates are stored within the database, so loading won't
     work properly anyway.
 
+- `global_vars` enabled
+
+    This means that you can access template variables declared on global
+    scope also from within template loops.  Without this option, the global
+    template variables would be blocked within template loops.
+
+Template variables can also be modified before template rendering using
+a plug-in preprocessor.  See the documentation of the `Yip::DB` module
+for further information about how the plug-in works.
+
 ## cvars table
 
 The `cvars` tables stores configuration variables related to the
@@ -378,6 +388,10 @@ only the following underscore names are defined:
     for months.)  If there are no abbreviated forms, this variable can be
     set to the same value as `_longm`
 
+If a plug-in preprocessor is used (see `Yip::DB`), then additional
+template variables might be dynamically defined by the preprocessor, and
+the preprocessor might also change existing template variables.
+
 ## post table
 
 The `post` table stores the posts.  Each post has a `postuid` field
@@ -505,6 +519,14 @@ with an underscore will be set for the specific post:
 
     Equivalent to `_sec` except zero-padded to always be two digits.
 
+Since there is not much to work with, there is no way to alter the
+template variables used within rendered post template codes using
+plug-in preprocessors.  If you need to get really fancy, consider having
+the post template code render to JSON, then use a template pre-processor
+to unpack that JSON to additional template variables, and then use those
+additional template variables in the actual rendering templates in the
+tmpl table.
+
 ## att table
 
 The `att` table stores attached resources.  This table is similar to
@@ -590,6 +612,10 @@ template variables are documented in the subsections below.
 Only certain template names are recognized in the Yip system.  It is
 allowable to add templates with other names, but these will serve no
 purpose.  The following subsections document the recognized templates.
+
+(In each of these template cases, a plug-in preprocessor may alter the
+template variables prior to the template running.  See `Yip::DB` for
+further information.)
 
 ### catalog template
 
