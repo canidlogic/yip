@@ -603,6 +603,12 @@ function for further information.
     prefixed with an underscore.  Custom parameters that were defined by the
     `customParam` function will also be available.
 
+    The template processor uses the default settings, except
+    `die_on_bad_params` is disabled so that defined template variables
+    don't need to be used, `no_includes` is enabled to prevent template
+    includes, and `global_vars` is enabled so that template variables
+    defined outside a loop are also available inside a loop.
+
     See the `sendHTML` function for further details on what happens.
 
 - **sendHTML(html)**
