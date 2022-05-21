@@ -76,7 +76,17 @@ This prevents templates from loading other templates with include
 statements.  Templates are stored within the database, so loading won't
 work properly anyway.
 
+=item C<global_vars> enabled
+
+This means that you can access template variables declared on global
+scope also from within template loops.  Without this option, the global
+template variables would be blocked within template loops.
+
 =back
+
+Template variables can also be modified before template rendering using
+a plug-in preprocessor.  See the documentation of the C<Yip::DB> module
+for further information about how the plug-in works.
 
 =head2 cvars table
 
@@ -398,6 +408,10 @@ set to the same value as C<_longm>
 
 =back
 
+If a plug-in preprocessor is used (see C<Yip::DB>), then additional
+template variables might be dynamically defined by the preprocessor, and
+the preprocessor might also change existing template variables.
+
 =head2 post table
 
 The C<post> table stores the posts.  Each post has a C<postuid> field
@@ -529,6 +543,14 @@ Equivalent to C<_sec> except zero-padded to always be two digits.
 
 =back
 
+Since there is not much to work with, there is no way to alter the
+template variables used within rendered post template codes using
+plug-in preprocessors.  If you need to get really fancy, consider having
+the post template code render to JSON, then use a template pre-processor
+to unpack that JSON to additional template variables, and then use those
+additional template variables in the actual rendering templates in the
+tmpl table.
+
 =head2 att table
 
 The C<att> table stores attached resources.  This table is similar to
@@ -614,6 +636,10 @@ template variables are documented in the subsections below.
 Only certain template names are recognized in the Yip system.  It is
 allowable to add templates with other names, but these will serve no
 purpose.  The following subsections document the recognized templates.
+
+(In each of these template cases, a plug-in preprocessor may alter the
+template variables prior to the template running.  See C<Yip::DB> for
+further information.)
 
 =head3 catalog template
 
