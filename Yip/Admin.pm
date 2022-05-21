@@ -1814,6 +1814,12 @@ variables from the C<cvars> table, except each of their names is
 prefixed with an underscore.  Custom parameters that were defined by the
 C<customParam> function will also be available.
 
+The template processor uses the default settings, except
+C<die_on_bad_params> is disabled so that defined template variables
+don't need to be used, C<no_includes> is enabled to prevent template
+includes, and C<global_vars> is enabled so that template variables
+defined outside a loop are also available inside a loop.
+
 See the C<sendHTML> function for further details on what happens.
 
 =cut
@@ -1840,7 +1846,8 @@ sub sendTemplate {
   my $template = HTML::Template->new(
                     scalarref => \$tcode,
                     die_on_bad_params => 0,
-                    no_includes => 1);
+                    no_includes => 1,
+                    global_vars => 1);
   
   # Set template parameters
   $template->param($self->{'_tvar'});
