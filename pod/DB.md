@@ -94,17 +94,23 @@ contents:
     use parent qw(Exporter);
     
     our @EXPORT = qw($config_dbpath);
+    our @EXPORT_OK = qw(config_preprocessor);
     
     $config_dbpath = '/example/path/to/cms/db.sqlite';
+    sub config_preprocessor { return; }
     
     1;
 
 Replace the example path in the file contents shown above with the
 absolute path on the server's file system to the SQLite database file.
-The only purpose of this module is to define a `config_dbpath` Perl
-variable that holds the path to the SQLite database.  You must name this
-module `YipConfig.pm` and place it in some directory that is in the
-Perl module include path of the Yip scripts you will be running.
+The purpose of this module is to define a `config_dbpath` Perl variable
+that holds the path to the SQLite database.  You must name this module
+`YipConfig.pm` and place it in some directory that is in the Perl
+module include path of the Yip scripts you will be running.
+
+The `config_preprocessor` shown in the above configuration module
+module defines a preprocessor that does nothing.  See the following
+subsection for more about the preprocessor.
 
 The second component of the bootstrap configuration is this `Yip::DB`
 module.  This module creates an object that holds the DBI connection
@@ -117,6 +123,52 @@ the `config_dbpath` variable defined by `YipConfig` to `Yip::DB` to
 construct the connection object, as is shown in the synopsis for this
 module.  Any additional configuration is then be read from the Yip CMS
 database.
+
+## Preprocessor plug-in
+
+The example configuration file given in the previous subsection defines
+a preprocessor that does nothing.  It is also possible to plug in a
+template preprocessor, which allows Yip rendering to be adapted.
+
+The preprocessor subroutine takes two parameters.  The first parameter
+is a string parameter that is either `catalog` `archive` or `post`.
+The second parameter is a hash reference.  The hash reference stores
+all the template variables that are about to be used to render a
+catalog, archive, or post page, in the format expected by the module
+`HTML::Template`.  The preprocessor may make any needed adjustments to
+this hash reference.  Note that the adjustments made by the preprocessor
+will not be checked for validity when the preprocessor returns.  This
+means that preprocessors can do nearly anything, but it also means they
+must be careful not to make the hash structure invalid.
+
+One way to use this flexibly is to have post templates stored in the
+post table render JSON.  The preprocessor then reads the rendered JSON
+and uses that to define additional template variables.  The templates in
+the template table can then use those custom-defined template variables,
+allowing for much more potential structuring than is available in plain
+Yip.
+
+The module holding the actual preprocessor should also be in the include
+path that is used for all CGI scripts.  Then, the configuration module
+should call into it for the preprocessor routine.  Here is an example:
+
+    package YipConfig;
+    use parent qw(Exporter);
+    use Example::Preprocessor;
+    
+    our @EXPORT = qw($config_dbpath);
+    our @EXPORT_OK = qw(config_preprocessor);
+    
+    $config_dbpath = '/example/path/to/cms/db.sqlite';
+    
+    sub config_preprocessor { 
+      ($#_ == 1) or die "Wrong number of parameters, stopped";
+      my $tmpl = shift;
+      my $vars = shift;
+      Example::Preprocessor->go($tmpl, $vars);
+    }
+    
+    1;
 
 # CONSTRUCTOR
 
