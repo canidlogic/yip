@@ -57,8 +57,7 @@ supported.
 #
 #   att - template array of attachments, each of which has the
 #   properties "aid" (the attachment index) "atype" (the attachment data
-#   type) "pdown" (the download script URL) and "aidf" (the post UID
-#   suffixed with the attachment index)
+#   type) and "aidf" (the post UID suffixed with the attachment index)
 #
 #   ptext - the post text
 #
@@ -89,12 +88,12 @@ my $preview_template = Yip::Admin->format_html('Export post', q{
         <td class="rcc"><TMPL_VAR NAME=aid></td>
         <td class="rcl"><TMPL_VAR NAME=atype></td>
         <td class="rcc">
-   <a href="<TMPL_VAR NAME=pdown>?local=<TMPL_VAR NAME=aidf>&preview=1">
+   <a href="<TMPL_VAR _pathdownload>?local=<TMPL_VAR aidf>&preview=1">
             View
           </a>
         </td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdown>?local=<TMPL_VAR NAME=aidf>">
+          <a href="<TMPL_VAR _pathdownload>?local=<TMPL_VAR NAME=aidf>">
             Download
           </a>
         </td>
@@ -370,7 +369,6 @@ if ($is_preview) {
     push @ata, ({
       aid   => $ati,
       atype => $yp->atttype($ati),
-      pdown => $yap->getVar('pathdownload'),
       aidf  => $yp->uid . "$ati"
     });
   }
