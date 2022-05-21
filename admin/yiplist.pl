@@ -51,8 +51,7 @@ GET is the only method supported by this script.
 # Yip::Admin, as well as the following custom template variables:
 #
 #   records - an array where each record has "uid" "aname" "adate"
-#   corresponding to those fields of the archive, and "pdrop" which is
-#   equal to _pathdrop
+#   corresponding to those fields of the archive
 #
 my $archive_template = Yip::Admin->format_html('Archives', q{
     <h1>Archives</h1>
@@ -84,9 +83,9 @@ my $archive_template = Yip::Admin->format_html('Archives', q{
         <td class="rcl"><TMPL_VAR NAME=aname ESCAPE=html></td>
         <td class="rcc"><TMPL_VAR NAME=adate></td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdrop>?archive=<TMPL_VAR NAME=uid>">
+        <a href="<TMPL_VAR NAME=_pathdrop>?archive=<TMPL_VAR NAME=uid>">
             Drop
-          </a>
+        </a>
         </td>
       </tr>
 </TMPL_LOOP>
@@ -99,8 +98,7 @@ my $archive_template = Yip::Admin->format_html('Archives', q{
 # Yip::Admin, as well as the following custom template variables:
 #
 #   records - an array where each record has "uid" and "tname" fields
-#   where tname is the data type name, and "pdrop" which is equal to
-#   _pathdrop and "pdown" which is equal to _pathdownload
+#   where tname is the data type name
 #
 my $global_template = Yip::Admin->format_html('Global resources', q{
     <h1>Global resources</h1>
@@ -131,17 +129,17 @@ my $global_template = Yip::Admin->format_html('Global resources', q{
         <td class="rcl"><TMPL_VAR NAME=tname></td>
         <td class="rcc">
           <a
-      href="<TMPL_VAR NAME=pdown>?global=<TMPL_VAR NAME=uid>&preview=1">
+        href="<TMPL_VAR _pathdownload>?global=<TMPL_VAR uid>&preview=1">
             View
           </a>
         </td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdown>?global=<TMPL_VAR NAME=uid>">
+          <a href="<TMPL_VAR _pathdownload>?global=<TMPL_VAR NAME=uid>">
             Download
           </a>
         </td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdrop>?global=<TMPL_VAR NAME=uid>">
+          <a href="<TMPL_VAR _pathdrop>?global=<TMPL_VAR NAME=uid>">
             Drop
           </a>
         </td>
@@ -156,8 +154,7 @@ my $global_template = Yip::Admin->format_html('Global resources', q{
 # Yip::Admin, as well as the following custom template variables:
 #
 #   records - an array where each record has "uid" and "tstamp" fields
-#   corresponding to the post fields, and "pdrop" which is equal to
-#   _pathdrop and "pex" which is equal to _pathexport
+#   corresponding to the post fields
 #
 my $post_template = Yip::Admin->format_html('Posts', q{
     <h1>Posts</h1>
@@ -187,17 +184,17 @@ my $post_template = Yip::Admin->format_html('Posts', q{
         <td class="rcc"><TMPL_VAR NAME=uid></td>
         <td class="rcc"><TMPL_VAR NAME=tstamp></td>
         <td class="rcc">
-       <a href="<TMPL_VAR NAME=pex>?post=<TMPL_VAR NAME=uid>&preview=1">
+    <a href="<TMPL_VAR _pathexport>?post=<TMPL_VAR NAME=uid>&preview=1">
             Inspect
           </a>
         </td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pex>?post=<TMPL_VAR NAME=uid>">
+          <a href="<TMPL_VAR _pathexport>?post=<TMPL_VAR NAME=uid>">
             Export
           </a>
         </td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdrop>?post=<TMPL_VAR NAME=uid>">
+          <a href="<TMPL_VAR _pathdrop>?post=<TMPL_VAR NAME=uid>">
             Drop
           </a>
         </td>
@@ -212,8 +209,6 @@ my $post_template = Yip::Admin->format_html('Posts', q{
 # Yip::Admin, as well as the following custom template variables:
 #
 #   records - an array where each record has "tname" and "tcache" fields
-#   as well as "pdrop" which is equal to _pathdrop and "pdown" which is
-#   equal to _pathdownload and "pedit" which is equal to _pathedit
 #
 my $template_template = Yip::Admin->format_html('Templates', q{
     <h1>Templates</h1>
@@ -254,22 +249,22 @@ my $template_template = Yip::Admin->format_html('Templates', q{
         <td class="rcr"><TMPL_VAR NAME=tcache></td>
         <td class="rcc">
           <a
-  href="<TMPL_VAR NAME=pdown>?template=<TMPL_VAR NAME=tname>&preview=1">
+    href="<TMPL_VAR _pathdownload>?template=<TMPL_VAR tname>&preview=1">
             View
          </a>
         </td>
         <td class="rcc">
-         <a href="<TMPL_VAR NAME=pdown>?template=<TMPL_VAR NAME=tname>">
+      <a href="<TMPL_VAR _pathdownload>?template=<TMPL_VAR NAME=tname>">
             Download
          </a>
         </td>
         <td class="rcc">
-         <a href="<TMPL_VAR NAME=pedit>?template=<TMPL_VAR NAME=tname>">
+         <a href="<TMPL_VAR _pathedit>?template=<TMPL_VAR NAME=tname>">
             Edit
          </a>
         </td>
         <td class="rcc">
-         <a href="<TMPL_VAR NAME=pdrop>?template=<TMPL_VAR NAME=tname>">
+         <a href="<TMPL_VAR _pathdrop>?template=<TMPL_VAR NAME=tname>">
             Drop
          </a>
         </td>
@@ -284,7 +279,7 @@ my $template_template = Yip::Admin->format_html('Templates', q{
 # Yip::Admin, as well as the following custom template variables:
 #
 #   records - an array where each record has "tname" "tmime" and
-#   "tcache" fields as well as "pdrop" which is equal to _pathdrop
+#   "tcache" fields
 #
 my $type_template = Yip::Admin->format_html('Data types', q{
     <h1>Data types</h1>
@@ -311,7 +306,7 @@ my $type_template = Yip::Admin->format_html('Data types', q{
         <td class="rcl"><TMPL_VAR NAME=tmime ESCAPE=HTML></td>
         <td class="rcr"><TMPL_VAR NAME=tcache></td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdrop>?type=<TMPL_VAR NAME=tname>">
+          <a href="<TMPL_VAR _pathdrop>?type=<TMPL_VAR NAME=tname>">
             Drop
           </a>
         </td>
@@ -325,8 +320,7 @@ my $type_template = Yip::Admin->format_html('Data types', q{
 # This template uses the standard template variables defined by
 # Yip::Admin, as well as the following custom template variables:
 #
-#   records - an array where each record has "key" and "val" fields as
-#   well as "pdrop" which is equal to _pathdrop
+#   records - an array where each record has "key" and "val" fields
 #
 my $var_template = Yip::Admin->format_html('Template variables', q{
     <h1>Template variables</h1>
@@ -351,7 +345,7 @@ my $var_template = Yip::Admin->format_html('Template variables', q{
         <td class="rcl"><TMPL_VAR NAME=key></td>
         <td class="rcll"><TMPL_VAR NAME=val ESCAPE=HTML></td>
         <td class="rcc">
-          <a href="<TMPL_VAR NAME=pdrop>?var=<TMPL_VAR NAME=key>">
+          <a href="<TMPL_VAR _pathdrop>?var=<TMPL_VAR NAME=key>">
             Drop
           </a>
         </td>
@@ -516,8 +510,7 @@ if ($report eq 'types') { # ============================================
       push @recs, ({
         tname  => $r->[0],
         tmime  => $r->[1],
-        tcache => $r->[2],
-        pdrop  => $yap->getVar('pathdrop')
+        tcache => $r->[2]
       });
     }
   }
@@ -547,8 +540,7 @@ if ($report eq 'types') { # ============================================
       push @recs, ({
         key   => $r->[0],
         val   => decode('UTF-8', $r->[1],
-                    Encode::FB_CROAK | Encode::LEAVE_SRC),
-        pdrop => $yap->getVar('pathdrop')
+                    Encode::FB_CROAK | Encode::LEAVE_SRC)
       });
     }
   }
@@ -577,10 +569,7 @@ if ($report eq 'types') { # ============================================
     for my $r (@$qr) {
       push @recs, ({
         tname  => $r->[0],
-        tcache => $r->[1],
-        pdrop  => $yap->getVar('pathdrop'),
-        pdown  => $yap->getVar('pathdownload'),
-        pedit  => $yap->getVar('pathedit')
+        tcache => $r->[1]
       });
     }
   }
@@ -611,8 +600,7 @@ if ($report eq 'types') { # ============================================
         uid   => $r->[0],
         aname => decode('UTF-8', $r->[1],
                     Encode::FB_CROAK | Encode::LEAVE_SRC),
-        adate => decode_time($r->[2], $yap->getVar('epoch')),
-        pdrop => $yap->getVar('pathdrop')
+        adate => decode_time($r->[2], $yap->getVar('epoch'))
       });
     }
   }
@@ -643,9 +631,7 @@ if ($report eq 'types') { # ============================================
     for my $r (@$qr) {
       push @recs, ({
         uid   => $r->[0],
-        tname => $r->[1],
-        pdrop => $yap->getVar('pathdrop'),
-        pdown => $yap->getVar('pathdownload')
+        tname => $r->[1]
       });
     }
   }
@@ -674,9 +660,7 @@ if ($report eq 'types') { # ============================================
     for my $r (@$qr) {
       push @recs, ({
         uid    => $r->[0],
-        tstamp => decode_time($r->[1], $yap->getVar('epoch')),
-        pdrop  => $yap->getVar('pathdrop'),
-        pex    => $yap->getVar('pathexport')
+        tstamp => decode_time($r->[1], $yap->getVar('epoch'))
       });
     }
   }
