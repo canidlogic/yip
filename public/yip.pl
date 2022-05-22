@@ -927,10 +927,167 @@ sub page_post {
 }
 
 # page_archive(uid)
-# @@TODO:
+#
+# Generate a requested archive page.  uid is the unique ID of the
+# archive being requested.
 #
 sub page_archive {
-  # @@TODO:
+  # Get parameter and check it
+  ($#_ == 0) or die "Wrong number of parameters, stopped";
+  my $archive_uid = shift;
+  
+  (not ref($archive_uid)) or die "Wrong parameter type, stopped";
+  (int($archive_uid) == $archive_uid) or
+    die "Wrong parameter type, stopped";
+  $archive_uid = int($archive_uid);
+  (($archive_uid >= 100000) and ($archive_uid <= 999999)) or
+    die "Parameter out of range, stopped";
+  
+  # Connect to database and start reading
+  my $dbc = Yip::DB->connect($config_dbpath, 0);
+  my $dbh = $dbc->beginWork('r');
+  
+  # Look up the name and until date for the requested archive
+  my $qr = $dbh->selectrow_arrayref(
+              'SELECT parcname, parcuntil FROM parc WHERE parcuid=?',
+              undef,
+              $archive_uid);
+  (ref($qr) eq 'ARRAY') or send_find_err();
+  
+  my $archive_name  = $qr->[0];
+  my $archive_until = $qr->[1];
+  
+  # If there are any archives earlier than this one, set the
+  # lbound_present flag and also set lbound_limit to the greatest
+  # "until" field across all defined archives that are earlier than the
+  # selected archive
+  my $lbound_present = 0;
+  my $lbound_limit;
+  
+  $qr = $dbh->selectrow_arrayref(
+              'SELECT parcuntil FROM parc WHERE parcuntil < ? '
+              . 'ORDER BY parcuntil DESC',
+              undef,
+              $archive_until);
+  if (ref($qr) eq 'ARRAY') {
+    $lbound_present = 1;
+    $lbound_limit = $qr->[0];
+  }
+  
+  # Get a list of all post UIDs in reverse chronological order within
+  # the time span covered by this archive
+  my @pul;
+  if ($lbound_present) {
+    $qr = $dbh->selectall_arrayref(
+            'SELECT postuid FROM post '
+            . 'WHERE postdate <= ? AND postdate > ? '
+            . 'ORDER BY postdate DESC',
+            undef,
+            $archive_until, $lbound_limit);
+  } else {
+    $qr = $dbh->selectall_arrayref(
+            'SELECT postuid FROM post '
+            . 'WHERE postdate <= ? '
+            . 'ORDER BY postdate DESC',
+            undef,
+            $archive_until);
+  }
+  if (ref($qr) eq 'ARRAY') {
+    for my $r (@$qr) {
+      push @pul, ($r->[0]);
+    }
+  }
+  
+  # Get basic variables from database
+  my ($epoch, $lastmod    ) = query_cvars($dbc);
+  my ($tvars, $monl, $mons) = query_vars($dbc);
+  
+  # Get a template array of all posts in reverse chronological order,
+  # including the _uid in each array element as well as the parsed
+  # datetime properties in each element, and also a _code property in
+  # each element that has the post content compiled in partial mode
+  my @posts;
+  for my $uid (@pul) {
+  
+    # Look up the date and the template code for the current post
+    $qr = $dbh->selectrow_arrayref(
+                'SELECT postdate, postcode FROM post WHERE postuid=?',
+                undef,
+                $uid);
+    (ref($qr) eq 'ARRAY') or die "Unexpected";
+    
+    my $date = $qr->[0];
+    my $code = $qr->[1];  
+    
+    # Start a hash for this post element and insert the _uid as well as
+    # the parsed datetime properties
+    my %pe = (
+      '_uid' => $uid
+    );
+    fill_dates(\%pe, $date, $epoch, $monl, $mons);
+    
+    # Compile the post body in a partial rendering and store in the
+    # _code variable in post element
+    $pe{'_code'} = compile_post(
+                        0, $uid, $date, \$code,
+                        $tvars, $epoch, $monl, $mons);
+    
+    # Add this element to the posts array
+    push @posts, (\%pe);
+  }
+  
+  # Get the cache and template code for the "archive" template
+  $qr = $dbh->selectrow_arrayref(
+                'SELECT tmplcache, tmplcode FROM tmpl WHERE tmplname=?',
+                undef,
+                'archive');
+  (ref($qr) eq 'ARRAY') or die "Archive template not defined, stopped";
+  my $tmpl_cache = $qr->[0];
+  my $tmpl_code  = $qr->[1];
+  
+  # Finish transaction
+  $dbc->finishWork;
+  
+  # Put the _posts array into the context, as well as the _uid and _name
+  # of the archive
+  $tvars->{'_posts'} = \@posts;
+  $tvars->{'_uid'  } = $archive_uid;
+  $tvars->{'_name' } = $archive_name;
+  
+  # We have now set up the standard template context, so our next step
+  # is to invoke the preprocessor plug-in (if any) to make any needed
+  # alterations to this context
+  config_preprocessor('archive', $tvars);
+  
+  # Construct a template engine on the post template
+  my $engine = tmpl_engine(\$tmpl_code);
+  
+  # Establish the template context variables
+  $engine->param($tvars);
+  
+  # Compile the full post page
+  my $result_code = $engine->output();
+  
+  # Translate the numeric cache value into a Cache-Control header value
+  if ($tmpl_cache == -1) {
+    $tmpl_cache = 'no-store';
+    
+  } elsif ($tmpl_cache == 0) {
+    $tmpl_cache = 'no-cache';
+    
+  } elsif ($tmpl_cache > 0) {
+    $tmpl_cache = "max-age=$tmpl_cache";
+    
+  } else {
+    die "Invalid cache value, stopped";
+  }
+  
+  # Now write the full response
+  print "Content-Type: text/html; charset=utf-8\r\n";
+  print "Cache-Control: $tmpl_cache\r\n";
+  print "ETag: W/\"$lastmod\"\r\n";
+  print "\r\n";
+  print "$result_code";
 }
 
 # ==============
