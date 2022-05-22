@@ -426,8 +426,8 @@ sub fill_dates {
   $vars->{'_year' } = "$year";
   $vars->{'_mon'  } = "$month";
   $vars->{'_monz' } = sprintf '%02u', $month;
-  $vars->{'_mons' } = $mons->[$month];
-  $vars->{'_monl' } = $monl->[$month];
+  $vars->{'_mons' } = $mons->[$month - 1];
+  $vars->{'_monl' } = $monl->[$month - 1];
   $vars->{'_day'  } = "$day";
   $vars->{'_dayz' } = sprintf '%02u', $day;
   $vars->{'_hr24' } = "$hrs";
